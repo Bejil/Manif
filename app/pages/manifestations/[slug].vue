@@ -13,8 +13,10 @@ if (error.value || !event.value) {
 }
 
 const { formatDate, formatTimeRange, categoryLabel } = useEventFormat()
-const { share } = useShare()
-const shareFeedback = ref<string | null>(null)
+
+const eventShareUrl = computed(
+  () => `${config.public.siteUrl}/manifestations/${event.value!.slug}`,
+)
 
 const ogImage = computed(
   () => `${config.public.siteUrl}/api/og/event/${event.value!.slug}`,
@@ -39,15 +41,6 @@ useSeoMeta({
 useHead({
   link: [{ rel: 'canonical', href: `${config.public.siteUrl}/manifestations/${event.value!.slug}` }],
 })
-
-async function onShare() {
-  const res = await share({
-    title: event.value!.title,
-    text: `${event.value!.title} — ${event.value!.cityName} · Voir sur Manif'`,
-    url: `${config.public.siteUrl}/manifestations/${event.value!.slug}`,
-  })
-  shareFeedback.value = res.method === 'clipboard' ? 'Lien copié dans le presse-papiers' : null
-}
 
 const reportOpen = ref(false)
 const reportReason = ref('wrong_date')
@@ -205,11 +198,12 @@ async function submitReport() {
           </p>
         </div>
 
-        <div class="mt-8 flex flex-wrap gap-2">
-          <UiButton variant="outline" @click="onShare">
-            <BrandIcon name="share" :size="16" />
-            Partager
-          </UiButton>
+        <div class="mt-8 flex flex-wrap items-start gap-2">
+          <EventShareMenu
+            :title="event.title"
+            :city-name="event.cityName"
+            :url="eventShareUrl"
+          />
           <a v-if="event.startAt" :href="`/api/events/${event.id}/calendar`">
             <UiButton variant="outline" type="button">
               <BrandIcon name="calendar" :size="16" />
@@ -220,7 +214,6 @@ async function submitReport() {
             Signaler
           </UiButton>
         </div>
-        <p v-if="shareFeedback" class="mt-3 text-sm font-semibold text-[#4D257D]" role="status">{{ shareFeedback }}</p>
         <p v-if="reportOk" class="mt-3 text-sm font-semibold text-[#206C4D]" role="status">Signalement envoyé. Merci.</p>
       </article>
 
