@@ -22,6 +22,8 @@ export interface EventSubmissionRecord {
   endAt: string | null
   organizerName: string | null
   sourceUrl: string | null
+  imageUrls: string[]
+  videoUrls: string[]
   practicalInfo: string | null
   proposerEmail: string
   verificationStatus: SubmissionVerificationStatus

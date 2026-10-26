@@ -18,9 +18,11 @@ const eventShareUrl = computed(
   () => `${config.public.siteUrl}/manifestations/${event.value!.slug}`,
 )
 
-const ogImage = computed(
-  () => `${config.public.siteUrl}/api/og/event/${event.value!.slug}`,
-)
+const ogImage = computed(() => {
+  const first = event.value?.imageUrls?.[0]
+  if (first) return first
+  return `${config.public.siteUrl}/api/og/event/${event.value!.slug}`
+})
 
 useSeoMeta({
   title: () => `${event.value!.title} — ${event.value!.cityName} | Manif'`,
@@ -161,7 +163,7 @@ async function submitReport() {
             <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Organisateur</p>
             <p class="mt-1 font-semibold text-[#111111]">{{ event.organizerName }}</p>
           </div>
-          <div v-if="event.sourceUrl">
+          <div v-if="event.sourceUrl" class="sm:col-span-2">
             <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Source</p>
             <a
               :href="event.sourceUrl"
@@ -171,6 +173,12 @@ async function submitReport() {
             >{{ event.sourceUrl }}</a>
           </div>
         </div>
+
+        <EventMediaGallery
+          :image-urls="event.imageUrls || []"
+          :video-urls="event.videoUrls || []"
+          :title="event.title"
+        />
 
         <div class="prose-manif mt-8 whitespace-pre-wrap">
           {{ event.description }}

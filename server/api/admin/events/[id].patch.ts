@@ -31,6 +31,8 @@ export default defineEventHandler(async (event) => {
   if (p.endIsEstimated !== undefined) mapped.endIsEstimated = p.endIsEstimated
   if (p.organizerName !== undefined) mapped.organizerName = p.organizerName
   if (p.sourceUrl !== undefined) mapped.sourceUrl = p.sourceUrl
+  if (p.imageUrls !== undefined) mapped.imageUrls = p.imageUrls
+  if (p.videoUrls !== undefined) mapped.videoUrls = p.videoUrls
   if (p.publicationStatus !== undefined) mapped.publicationStatus = p.publicationStatus
   if (p.eventStatusOverride !== undefined) mapped.eventStatusOverride = p.eventStatusOverride
 

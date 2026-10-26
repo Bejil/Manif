@@ -75,6 +75,8 @@ export default defineEventHandler(async (event) => {
     endAt,
     organizerName: parsed.data.organizerName,
     sourceUrl: parsed.data.sourceUrl,
+    imageUrls: parsed.data.imageUrls,
+    videoUrls: parsed.data.videoUrls,
     practicalInfo: parsed.data.practicalInfo,
     proposerEmail: parsed.data.proposerEmail,
     pepper: config.participationTokenPepper,

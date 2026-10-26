@@ -2,6 +2,21 @@ import type { EventRecord } from '#shared/types/event'
 import type { EventSubmissionRecord } from '#shared/types/submission'
 import type { EngagementRecord } from '#shared/types/engagement'
 import type { ParticipationKind } from '#shared/utils/event-time'
+import { MAX_EVENT_IMAGES, MAX_EVENT_VIDEOS, normalizeMediaUrls } from '#shared/utils/media'
+
+function readUrlArray(value: unknown, max: number): string[] {
+  if (Array.isArray(value)) return normalizeMediaUrls(value, max)
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value) as unknown
+      return normalizeMediaUrls(parsed, max)
+    }
+    catch {
+      return []
+    }
+  }
+  return []
+}
 
 export function rowToEvent(row: Record<string, unknown>): EventRecord {
   return {
@@ -24,6 +39,8 @@ export function rowToEvent(row: Record<string, unknown>): EventRecord {
     endIsEstimated: Boolean(row.end_is_estimated),
     organizerName: (row.organizer_name as string | null) ?? null,
     sourceUrl: (row.source_url as string | null) ?? null,
+    imageUrls: readUrlArray(row.image_urls, MAX_EVENT_IMAGES),
+    videoUrls: readUrlArray(row.video_urls, MAX_EVENT_VIDEOS),
     sourceVerificationStatus: row.source_verification_status as EventRecord['sourceVerificationStatus'],
     publicationStatus: row.publication_status as EventRecord['publicationStatus'],
     eventStatusOverride: (row.event_status_override as EventRecord['eventStatusOverride']) ?? null,
@@ -55,6 +72,8 @@ export function eventToRow(event: Partial<EventRecord> & { id?: string }) {
     end_is_estimated: event.endIsEstimated,
     organizer_name: event.organizerName ?? null,
     source_url: event.sourceUrl ?? null,
+    image_urls: event.imageUrls ?? [],
+    video_urls: event.videoUrls ?? [],
     source_verification_status: event.sourceVerificationStatus,
     publication_status: event.publicationStatus,
     event_status_override: event.eventStatusOverride ?? null,
@@ -78,6 +97,8 @@ export function rowToSubmission(row: Record<string, unknown>): EventSubmissionRe
     endAt: row.end_at ? normalizeTs(row.end_at) : null,
     organizerName: (row.organizer_name as string | null) ?? null,
     sourceUrl: (row.source_url as string | null) ?? null,
+    imageUrls: readUrlArray(row.image_urls, MAX_EVENT_IMAGES),
+    videoUrls: readUrlArray(row.video_urls, MAX_EVENT_VIDEOS),
     practicalInfo: (row.practical_info as string | null) ?? null,
     proposerEmail: row.proposer_email as string,
     verificationStatus: row.verification_status as EventSubmissionRecord['verificationStatus'],

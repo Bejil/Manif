@@ -27,6 +27,8 @@ export function buildDemoEvents(now = DateTime.utc()): EventRecord[] {
       publishedAt: ts,
       isDemo: false,
       locationRevealAt: partial.locationRevealAt ?? null,
+      imageUrls: partial.imageUrls ?? [],
+      videoUrls: partial.videoUrls ?? [],
     }
   }
 

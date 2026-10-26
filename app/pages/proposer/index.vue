@@ -31,6 +31,8 @@ const form = reactive({
   endTime: '',
   organizerName: '',
   sourceUrl: '',
+  imageUrls: [] as string[],
+  videoUrls: [] as string[],
   practicalInfo: '',
   proposerEmail: '',
 })
@@ -86,6 +88,8 @@ async function loadForEdit() {
       endTime: string
       organizerName: string
       sourceUrl: string
+      imageUrls: string[]
+      videoUrls: string[]
       practicalInfo: string
       proposerEmailMasked: string
       adminMessage: string | null
@@ -106,6 +110,8 @@ async function loadForEdit() {
     form.endTime = data.endTime
     form.organizerName = data.organizerName
     form.sourceUrl = data.sourceUrl
+    form.imageUrls = data.imageUrls || []
+    form.videoUrls = data.videoUrls || []
     form.practicalInfo = data.practicalInfo
     emailMasked.value = data.proposerEmailMasked
     adminMessage.value = data.adminMessage
@@ -167,6 +173,8 @@ async function onSubmit() {
           endTime: form.endTime,
           organizerName: form.organizerName,
           sourceUrl: form.sourceUrl,
+          imageUrls: form.imageUrls,
+          videoUrls: form.videoUrls,
           practicalInfo: form.practicalInfo,
           turnstileToken: turnstileToken.value || undefined,
         },
@@ -322,7 +330,18 @@ async function onSubmit() {
           :options="revealOptions"
         />
         <UiInput id="organizer" v-model="form.organizerName" label="Organisateur" hint="Facultatif" />
-        <UiInput id="source" v-model="form.sourceUrl" label="URL source" type="url" hint="Facultatif" />
+        <UiInput
+          id="source"
+          v-model="form.sourceUrl"
+          label="URL source"
+          type="url"
+          hint="Lien vers l’appel officiel, la page de l’organisateur ou une source vérifiable. Fortement recommandé."
+        />
+        <EventMediaFields
+          v-model:image-urls="form.imageUrls"
+          v-model:video-urls="form.videoUrls"
+          :turnstile-token="turnstileToken"
+        />
         <UiTextarea id="practical" v-model="form.practicalInfo" label="Informations pratiques" hint="Facultatif" />
         <UiInput
           v-if="!isEditMode"

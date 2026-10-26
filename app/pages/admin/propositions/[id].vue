@@ -26,6 +26,8 @@ type SubmissionDetail = {
   endAt: string | null
   organizerName: string | null
   sourceUrl: string | null
+  imageUrls?: string[]
+  videoUrls?: string[]
   practicalInfo: string | null
   proposerEmailMasked: string
   proposerEmail?: string
@@ -233,7 +235,7 @@ const revealLabel = computed(() => {
               <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Organisateur</p>
               <p class="mt-1 font-semibold text-[#111111]">{{ item.organizerName }}</p>
             </div>
-            <div v-if="item.sourceUrl">
+            <div v-if="item.sourceUrl" class="sm:col-span-2">
               <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Source</p>
               <a
                 :href="item.sourceUrl"
@@ -243,6 +245,12 @@ const revealLabel = computed(() => {
               >{{ item.sourceUrl }}</a>
             </div>
           </div>
+
+          <EventMediaGallery
+            :image-urls="item.imageUrls || []"
+            :video-urls="item.videoUrls || []"
+            :title="item.title"
+          />
 
           <div>
             <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Description</p>

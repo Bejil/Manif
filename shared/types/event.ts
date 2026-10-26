@@ -31,6 +31,10 @@ export interface EventRecord {
   endIsEstimated: boolean
   organizerName: string | null
   sourceUrl: string | null
+  /** URLs HTTPS d’images (liens externes ou Storage Manif') */
+  imageUrls: string[]
+  /** URLs HTTPS de vidéos (YouTube, Vimeo, fichier, etc.) */
+  videoUrls: string[]
   sourceVerificationStatus: SourceVerificationStatus
   publicationStatus: PublicationStatus
   eventStatusOverride: EventStatusOverride | null

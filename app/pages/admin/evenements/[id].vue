@@ -69,6 +69,8 @@ const form = reactive({
   endIsEstimated: true,
   organizerName: '',
   sourceUrl: '',
+  imageUrls: [] as string[],
+  videoUrls: [] as string[],
   publicationStatus: 'published' as 'draft' | 'published' | 'unpublished',
   eventStatusOverride: '' as '' | 'cancelled' | 'postponed',
 })
@@ -104,6 +106,8 @@ function fillForm(e: EventPublic) {
   form.endIsEstimated = e.endIsEstimated
   form.organizerName = e.organizerName || ''
   form.sourceUrl = e.sourceUrl || ''
+  form.imageUrls = [...(e.imageUrls || [])]
+  form.videoUrls = [...(e.videoUrls || [])]
   form.publicationStatus = e.publicationStatus
   form.eventStatusOverride = e.eventStatusOverride || ''
 }
@@ -192,6 +196,8 @@ async function saveEdit() {
         endIsEstimated: form.endIsEstimated,
         organizerName: form.organizerName === '' ? null : form.organizerName,
         sourceUrl: form.sourceUrl === '' ? null : form.sourceUrl,
+        imageUrls: form.imageUrls,
+        videoUrls: form.videoUrls,
         publicationStatus: form.publicationStatus,
         eventStatusOverride: form.eventStatusOverride || null,
       },
@@ -528,7 +534,19 @@ async function mergeIntoTarget() {
               </p>
             </div>
             <UiInput id="edit-organizer" v-model="form.organizerName" label="Organisateur" />
-            <UiInput id="edit-source" v-model="form.sourceUrl" label="URL source" type="url" />
+            <UiInput
+              id="edit-source"
+              v-model="form.sourceUrl"
+              label="URL source"
+              type="url"
+              hint="Appel officiel ou page de l’organisateur"
+            />
+            <div class="sm:col-span-2">
+              <EventMediaFields
+                v-model:image-urls="form.imageUrls"
+                v-model:video-urls="form.videoUrls"
+              />
+            </div>
           </div>
 
           <div class="flex flex-wrap gap-3 border-t border-[#DDDAD3] pt-5">

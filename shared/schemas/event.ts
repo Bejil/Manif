@@ -1,9 +1,33 @@
 import { z } from 'zod'
 import { EVENT_CATEGORIES } from '../constants/categories'
 import { REPORT_REASONS } from '../constants/statuses'
+import {
+  isHttpsMediaUrl,
+  MAX_EVENT_IMAGES,
+  MAX_EVENT_VIDEOS,
+  MAX_MEDIA_URL_LENGTH,
+} from '../utils/media'
 
 const categoryIds = EVENT_CATEGORIES.map(c => c.id) as [string, ...string[]]
 const reportReasonIds = REPORT_REASONS.map(r => r.id) as [string, ...string[]]
+
+const mediaUrlSchema = z
+  .string()
+  .trim()
+  .max(MAX_MEDIA_URL_LENGTH)
+  .refine(isHttpsMediaUrl, { message: 'URL HTTPS invalide' })
+
+const imageUrlsSchema = z
+  .array(mediaUrlSchema)
+  .max(MAX_EVENT_IMAGES)
+  .optional()
+  .default([])
+
+const videoUrlsSchema = z
+  .array(mediaUrlSchema)
+  .max(MAX_EVENT_VIDEOS)
+  .optional()
+  .default([])
 
 export const eventListQuerySchema = z.object({
   q: z.string().max(200).optional(),
@@ -60,6 +84,8 @@ export const submissionCreateSchema = z.object({
     .max(500)
     .optional()
     .or(z.literal('').transform(() => undefined)),
+  imageUrls: imageUrlsSchema,
+  videoUrls: videoUrlsSchema,
   practicalInfo: z.string().trim().max(2000).optional(),
   proposerEmail: z.string().trim().email().max(254),
   turnstileToken: z.string().min(1).optional(),
@@ -122,6 +148,8 @@ export const adminEventPatchSchema = z.object({
     .union([z.string().url().max(500), z.literal(''), z.null()])
     .optional()
     .transform(v => (v === '' || v == null ? null : v)),
+  imageUrls: z.array(mediaUrlSchema).max(MAX_EVENT_IMAGES).optional(),
+  videoUrls: z.array(mediaUrlSchema).max(MAX_EVENT_VIDEOS).optional(),
   publicationStatus: z.enum(['draft', 'published', 'unpublished']).optional(),
   eventStatusOverride: z
     .union([z.enum(['cancelled', 'postponed']), z.literal(''), z.null()])

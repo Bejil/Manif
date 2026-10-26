@@ -57,6 +57,8 @@ export async function createSubmission(input: {
   endAt: string | null
   organizerName?: string
   sourceUrl?: string
+  imageUrls?: string[]
+  videoUrls?: string[]
   practicalInfo?: string
   proposerEmail: string
   pepper: string
@@ -79,6 +81,8 @@ export async function createSubmission(input: {
     endAt: input.endAt,
     organizerName: input.organizerName ?? null,
     sourceUrl: input.sourceUrl ?? null,
+    imageUrls: input.imageUrls ?? [],
+    videoUrls: input.videoUrls ?? [],
     practicalInfo: input.practicalInfo ?? null,
     proposerEmail: input.proposerEmail.toLowerCase(),
     verificationStatus: 'pending' as const,
@@ -111,6 +115,8 @@ export async function createSubmission(input: {
       end_at: base.endAt,
       organizer_name: base.organizerName,
       source_url: base.sourceUrl,
+      image_urls: base.imageUrls,
+      video_urls: base.videoUrls,
       practical_info: base.practicalInfo,
       proposer_email: base.proposerEmail,
       verification_status: base.verificationStatus,
@@ -374,6 +380,8 @@ export async function approveSubmission(id: string, actorId: string) {
     endIsEstimated: !submission.endAt,
     organizerName: submission.organizerName,
     sourceUrl: submission.sourceUrl,
+    imageUrls: submission.imageUrls ?? [],
+    videoUrls: submission.videoUrls ?? [],
     sourceVerificationStatus: submission.sourceUrl ? 'source_provided' : 'unconfirmed',
     publicationStatus: 'published',
     eventStatusOverride: null,
@@ -609,6 +617,8 @@ export async function getSubmissionForEdit(token: string, pepper: string) {
     endTime,
     organizerName: s.organizerName ?? '',
     sourceUrl: s.sourceUrl ?? '',
+    imageUrls: s.imageUrls ?? [],
+    videoUrls: s.videoUrls ?? [],
     practicalInfo: s.practicalInfo ?? '',
     proposerEmailMasked: maskEmail(s.proposerEmail),
     adminMessage: s.rejectionReason,
@@ -668,6 +678,8 @@ function buildSubmissionChanges(
     endAt: string | null
     organizerName: string | null
     sourceUrl: string | null
+    imageUrls: string[]
+    videoUrls: string[]
     practicalInfo: string | null
   },
 ) {
@@ -692,6 +704,18 @@ function buildSubmissionChanges(
     { field: 'endAt', label: 'Fin', before: before.endAt, after: after.endAt },
     { field: 'organizerName', label: 'Organisateur', before: before.organizerName, after: after.organizerName },
     { field: 'sourceUrl', label: 'URL source', before: before.sourceUrl, after: after.sourceUrl },
+    {
+      field: 'imageUrls',
+      label: 'Images',
+      before: (before.imageUrls ?? []).join('\n') || null,
+      after: after.imageUrls.join('\n') || null,
+    },
+    {
+      field: 'videoUrls',
+      label: 'Vidéos',
+      before: (before.videoUrls ?? []).join('\n') || null,
+      after: after.videoUrls.join('\n') || null,
+    },
     { field: 'practicalInfo', label: 'Infos pratiques', before: before.practicalInfo, after: after.practicalInfo },
   ]
 
@@ -718,6 +742,8 @@ export async function updateSubmissionAfterChanges(input: {
   endAt: string | null
   organizerName?: string
   sourceUrl?: string
+  imageUrls?: string[]
+  videoUrls?: string[]
   practicalInfo?: string
 }) {
   const submission = await loadSubmissionByEditToken(input.editToken, input.pepper)
@@ -734,6 +760,8 @@ export async function updateSubmissionAfterChanges(input: {
     endAt: input.endAt,
     organizerName: input.organizerName ?? null,
     sourceUrl: input.sourceUrl ?? null,
+    imageUrls: input.imageUrls ?? [],
+    videoUrls: input.videoUrls ?? [],
     practicalInfo: input.practicalInfo ?? null,
   }
 
@@ -778,6 +806,8 @@ export async function updateSubmissionAfterChanges(input: {
       end_at: patch.endAt,
       organizer_name: patch.organizerName,
       source_url: patch.sourceUrl,
+      image_urls: patch.imageUrls,
+      video_urls: patch.videoUrls,
       practical_info: patch.practicalInfo,
       moderation_status: patch.moderationStatus,
       edit_token_digest: null,
