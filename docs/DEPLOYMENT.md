@@ -5,7 +5,8 @@
 - Node.js 22+ (LTS recommandé)
 - Compte Supabase (production)
 - Domaine + HTTPS
-- (Optionnel) Resend, Turnstile, URL de dons
+- Cloudflare Turnstile (antibot)
+- (Optionnel) Resend, URL de dons
 
 ## Configuration Supabase
 
@@ -92,8 +93,8 @@ Vercel → Project → **Settings → Environment Variables**. Coller au minimum
 | `NUXT_PUBLIC_CONTACT_EMAIL` | `contact@manif.info` |
 | `NUXT_PUBLIC_USE_MOCK_DB` | `false` |
 | `NUXT_PUBLIC_ENGAGEMENTS_ENABLED` | `true` (ou `false` si pas encore validé) |
-| `SUPABASE_URL` | URL projet Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role (secret) |
+| `SUPABASE_URL` + `NUXT_SUPABASE_URL` | URL projet Supabase (les deux) |
+| `SUPABASE_SERVICE_ROLE_KEY` + `NUXT_SUPABASE_SERVICE_ROLE_KEY` | **service_role** / `sb_secret_…` — jamais la clé anon |
 | `PARTICIPATION_TOKEN_PEPPER` | chaîne longue aléatoire |
 | `ADMIN_SESSION_SECRET` | chaîne longue aléatoire |
 | `RATE_LIMIT_SALT` | chaîne aléatoire |

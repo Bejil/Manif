@@ -16,7 +16,7 @@ Une validation par juriste / DPO reste recommandée avant une audience large.
 | Suivi transversal | Aucun (jeton scoped événement) |
 | IP dans engagements | Non |
 | Activation | Flag env `PARTICIPATION_ENABLED` |
-| Éditeur | Michael Blin — contact@manif.info |
+| Éditeur | Manif' — contact@manif.info |
 
 ## Traitements
 
@@ -34,7 +34,7 @@ Une validation par juriste / DPO reste recommandée avant une audience large.
 - Supabase (PostgreSQL, Auth)
 - Hébergeur SSR du déploiement (à nommer précisément au go-live)
 - Resend (si configuré)
-- Cloudflare Turnstile (si configuré)
+- Cloudflare Turnstile
 - Tuiles cartographiques (OpenFreeMap / OSM)
 
 ## Durées (opérationnelles)

@@ -7,16 +7,39 @@ export function useMockDb(): boolean {
   return config.public.useMockDb === true
 }
 
-export function getServiceSupabase(): SupabaseClient {
+function resolveSupabaseConfig() {
   const config = useRuntimeConfig()
-  if (!config.supabaseUrl || !config.supabaseServiceRoleKey) {
+  // Vercel : préférer NUXT_* (override runtime) ; fallback process.env au cas où
+  // le build a figé des valeurs vides dans runtimeConfig.
+  const url = String(
+    config.supabaseUrl
+    || process.env.NUXT_SUPABASE_URL
+    || process.env.SUPABASE_URL
+    || '',
+  ).trim()
+  const key = String(
+    config.supabaseServiceRoleKey
+    || process.env.NUXT_SUPABASE_SERVICE_ROLE_KEY
+    || process.env.SUPABASE_SERVICE_ROLE_KEY
+    || '',
+  ).trim()
+  return { url, key }
+}
+
+export function getServiceSupabase(): SupabaseClient {
+  const { url, key } = resolveSupabaseConfig()
+  if (!url || !key) {
     throw createError({
       statusCode: 503,
       statusMessage: 'Supabase non configuré (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)',
     })
   }
+  // Clé publishable/anon → RLS sans politique SELECT → listes vides sans erreur 500
+  if (key.startsWith('sb_publishable_')) {
+    console.warn('[supabase] sb_publishable_ détectée — utiliser sb_secret_ / service_role')
+  }
   if (!cached) {
-    cached = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
+    cached = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
     })
   }

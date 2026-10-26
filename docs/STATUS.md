@@ -13,7 +13,7 @@ Dernière vérification : engagements **soutien + participation déclarée**, Su
 
 ## Décisions produit
 
-- Éditeur : Michael Blin / contact@manif.info — https://manif.info
+- Éditeur : Manif' / contact@manif.info — https://manif.info
 - `PARTICIPATION_ENABLED=true` (flag de collecte globale)
 - Consentement case à cocher avant 1ʳᵉ déclaration
 - Revue juriste externe : recommandée, non bloquante pour le MVP fonctionnel

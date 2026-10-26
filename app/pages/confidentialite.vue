@@ -77,7 +77,7 @@ const config = useRuntimeConfig()
       <li>Supabase (hébergement PostgreSQL / Auth)</li>
       <li>Hébergeur du serveur applicatif (selon déploiement)</li>
       <li>Resend (e-mails, si configuré)</li>
-      <li>Cloudflare Turnstile (antibot, si configuré)</li>
+      <li>Cloudflare Turnstile (antibot)</li>
       <li>Fournisseur de tuiles cartographiques (OpenFreeMap / OSM par défaut)</li>
     </ul>
 

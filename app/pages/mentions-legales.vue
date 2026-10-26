@@ -8,7 +8,7 @@ useSeoMeta({
 const config = useRuntimeConfig()
 
 const editorName = computed(() =>
-  (config.public.legalEditorName as string) || 'Michael Blin',
+  (config.public.legalEditorName as string) || "Manif'",
 )
 const editorAddress = computed(() =>
   (config.public.legalEditorAddress as string)

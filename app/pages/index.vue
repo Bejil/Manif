@@ -74,6 +74,31 @@ function refDebounced<T>(source: Ref<T>, ms: number) {
 }
 
 const homeFaq = FAQ_ITEMS.slice(0, 5)
+
+/** Photos Unsplash (licence libre) — 4:3, personnes réelles */
+const engagementBlocks = [
+  {
+    title: 'Je soutiens',
+    icon: 'support' as const,
+    image: '/images/engagement/support.jpg',
+    alt: 'Foule tenant des pancartes lors d’une manifestation',
+    text: 'Affirmez votre soutien à un mouvement, même sans être sur place. Annulable à tout moment.',
+  },
+  {
+    title: 'Je participe',
+    icon: 'participate' as const,
+    image: '/images/engagement/participate.jpg',
+    alt: 'Cortège de manifestants dans une rue',
+    text: 'Déclarez votre intention avant, ou votre présence pendant. Ce n’est pas un comptage officiel.',
+  },
+  {
+    title: 'Je partage',
+    icon: 'share' as const,
+    image: '/images/engagement/share.jpg',
+    alt: 'Personnes partageant des informations autour d’un écran',
+    text: 'Diffusez une fiche, un lien, un créneau calendrier. L’information circule, pas vos données.',
+  },
+]
 </script>
 
 <template>
@@ -255,36 +280,32 @@ const homeFaq = FAQ_ITEMS.slice(0, 5)
           </p>
         </div>
 
-        <div class="mt-12 grid gap-6 lg:grid-cols-3">
-          <article class="border border-white/10 bg-[#252525] p-5">
-            <ManifIllustration name="support" alt="" class="rounded-[4px]" />
-            <div class="mt-5 flex items-center gap-2">
-              <BrandIcon name="support" :size="22" />
-              <h3 class="mf-display text-2xl">Je soutiens</h3>
+        <div class="mt-12 grid gap-6 lg:grid-cols-3 lg:items-stretch">
+          <article
+            v-for="block in engagementBlocks"
+            :key="block.title"
+            class="flex h-full flex-col overflow-hidden border border-white/10 bg-[#252525]"
+          >
+            <div class="aspect-[4/3] shrink-0 overflow-hidden bg-[#111111]">
+              <img
+                :src="block.image"
+                :alt="block.alt"
+                width="1200"
+                height="900"
+                loading="lazy"
+                decoding="async"
+                class="size-full object-cover object-center"
+              >
             </div>
-            <p class="mt-2 text-sm leading-relaxed text-[#FFFCF4]/65">
-              Affirmez votre soutien à un mouvement, même sans être sur place. Annulable à tout moment.
-            </p>
-          </article>
-          <article class="border border-white/10 bg-[#252525] p-5">
-            <ManifIllustration name="participate" alt="" class="rounded-[4px]" />
-            <div class="mt-5 flex items-center gap-2">
-              <BrandIcon name="participate" :size="22" />
-              <h3 class="mf-display text-2xl">Je participe</h3>
+            <div class="flex flex-1 flex-col p-5">
+              <div class="flex items-center gap-2">
+                <BrandIcon :name="block.icon" :size="22" />
+                <h3 class="mf-display text-2xl">{{ block.title }}</h3>
+              </div>
+              <p class="mt-2 flex-1 text-sm leading-relaxed text-[#FFFCF4]/65">
+                {{ block.text }}
+              </p>
             </div>
-            <p class="mt-2 text-sm leading-relaxed text-[#FFFCF4]/65">
-              Déclarez votre intention avant, ou votre présence pendant. Ce n’est pas un comptage officiel.
-            </p>
-          </article>
-          <article class="border border-white/10 bg-[#252525] p-5">
-            <ManifIllustration name="share" alt="" class="rounded-[4px]" />
-            <div class="mt-5 flex items-center gap-2">
-              <BrandIcon name="share" :size="22" />
-              <h3 class="mf-display text-2xl">Je partage</h3>
-            </div>
-            <p class="mt-2 text-sm leading-relaxed text-[#FFFCF4]/65">
-              Diffusez une fiche, un lien, un créneau calendrier. L’information circule, pas vos données.
-            </p>
           </article>
         </div>
 
@@ -311,21 +332,33 @@ const homeFaq = FAQ_ITEMS.slice(0, 5)
           <UiButton variant="outline">Pourquoi Manif' ?</UiButton>
         </NuxtLink>
       </div>
-      <ManifIllustration
-        name="discover-map"
-        alt="Carte stylisée avec points de rassemblement"
-        class="rounded-[8px] shadow-lift"
-      />
+      <div class="aspect-[4/3] overflow-hidden rounded-[8px] bg-[#F4F1EA] shadow-lift">
+        <img
+          src="/images/home/discover.jpg"
+          alt="Rue parisienne, orientation en ville"
+          width="1200"
+          height="900"
+          loading="lazy"
+          decoding="async"
+          class="size-full object-cover object-center"
+        >
+      </div>
     </section>
 
     <!-- PROPOSER -->
     <section class="bg-[#F0E8FC]">
       <div class="container-page grid items-center gap-10 py-14 md:grid-cols-2 md:py-20">
-        <ManifIllustration
-          name="propose"
-          alt="Formulaire pour proposer un événement"
-          class="order-2 rounded-[8px] shadow-lift md:order-1"
-        />
+        <div class="order-2 aspect-[4/3] overflow-hidden rounded-[8px] bg-[#E8D9F8] shadow-lift md:order-1">
+          <img
+            src="/images/home/propose.jpg"
+            alt="Saisie d’une proposition sur un ordinateur"
+            width="1200"
+            height="900"
+            loading="lazy"
+            decoding="async"
+            class="size-full object-cover object-center"
+          >
+        </div>
         <div class="order-1 md:order-2">
           <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#4D257D]">Proposer</p>
           <h2 class="mf-display mf-h2 mt-3 text-[#111111]">
@@ -365,11 +398,17 @@ const homeFaq = FAQ_ITEMS.slice(0, 5)
           </UiButton>
         </NuxtLink>
       </div>
-      <ManifIllustration
-        name="guide-prep"
-        alt="Préparation d’une journée de manifestation"
-        class="rounded-[8px] shadow-lift"
-      />
+      <div class="aspect-[4/3] overflow-hidden rounded-[8px] bg-[#F4F1EA] shadow-lift">
+        <img
+          src="/images/home/guide.jpg"
+          alt="Public attentif lors d’une prise d’information"
+          width="1200"
+          height="900"
+          loading="lazy"
+          decoding="async"
+          class="size-full object-cover object-center"
+        >
+      </div>
     </section>
 
     <!-- FAQ -->
