@@ -1,9 +1,17 @@
 <script setup lang="ts">
+export interface HistoryChange {
+  field: string
+  label: string
+  before: string
+  after: string
+}
+
 export interface HistoryItem {
   id: string
   action: string
   label: string
   detail: string | null
+  changes?: HistoryChange[] | null
   actorId: string
   createdAt: string
 }
@@ -23,6 +31,12 @@ function formatWhen(iso: string) {
   catch {
     return iso
   }
+}
+
+function truncate(s: string, max = 280) {
+  const t = s.trim()
+  if (t.length <= max) return t
+  return `${t.slice(0, max)}…`
 }
 </script>
 
@@ -48,8 +62,27 @@ function formatWhen(iso: string) {
           {{ formatWhen(entry.createdAt) }}
           <span v-if="entry.actorId"> · {{ entry.actorId }}</span>
         </p>
+
+        <ul v-if="entry.changes?.length" class="mt-2 space-y-2">
+          <li
+            v-for="change in entry.changes"
+            :key="change.field"
+            class="rounded-[4px] bg-[#F4F1EA] px-3 py-2 text-sm text-[#454545]"
+          >
+            <p class="font-bold text-[#111111]">{{ change.label }}</p>
+            <p class="mt-1">
+              <span class="text-xs font-semibold uppercase tracking-wide text-[#636363]">Avant</span>
+              <span class="mt-0.5 block whitespace-pre-wrap">{{ truncate(change.before) }}</span>
+            </p>
+            <p class="mt-2">
+              <span class="text-xs font-semibold uppercase tracking-wide text-[#636363]">Après</span>
+              <span class="mt-0.5 block whitespace-pre-wrap">{{ truncate(change.after) }}</span>
+            </p>
+          </li>
+        </ul>
+
         <p
-          v-if="entry.detail"
+          v-else-if="entry.detail"
           class="mt-2 whitespace-pre-wrap rounded-[4px] bg-[#F4F1EA] px-3 py-2 text-sm text-[#454545]"
         >
           {{ entry.detail }}

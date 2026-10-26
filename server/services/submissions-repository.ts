@@ -615,6 +615,61 @@ export async function getSubmissionForEdit(token: string, pepper: string) {
   }
 }
 
+function displayValue(v: string | number | null | undefined): string {
+  if (v == null || v === '') return ''
+  return String(v)
+}
+
+function buildSubmissionChanges(
+  before: EventSubmissionRecord,
+  after: {
+    title: string
+    description: string
+    category: string
+    cityName: string
+    locationName: string
+    locationRevealHoursBefore: number | null
+    startAt: string | null
+    endAt: string | null
+    organizerName: string | null
+    sourceUrl: string | null
+    practicalInfo: string | null
+  },
+) {
+  const fields: Array<{
+    field: keyof typeof after
+    label: string
+    before: string | number | null
+    after: string | number | null
+  }> = [
+    { field: 'title', label: 'Titre', before: before.title, after: after.title },
+    { field: 'description', label: 'Description', before: before.description, after: after.description },
+    { field: 'category', label: 'Catégorie', before: before.category, after: after.category },
+    { field: 'cityName', label: 'Ville', before: before.cityName, after: after.cityName },
+    { field: 'locationName', label: 'Lieu', before: before.locationName, after: after.locationName },
+    {
+      field: 'locationRevealHoursBefore',
+      label: 'Publication du lieu',
+      before: before.locationRevealHoursBefore,
+      after: after.locationRevealHoursBefore,
+    },
+    { field: 'startAt', label: 'Début', before: before.startAt, after: after.startAt },
+    { field: 'endAt', label: 'Fin', before: before.endAt, after: after.endAt },
+    { field: 'organizerName', label: 'Organisateur', before: before.organizerName, after: after.organizerName },
+    { field: 'sourceUrl', label: 'URL source', before: before.sourceUrl, after: after.sourceUrl },
+    { field: 'practicalInfo', label: 'Infos pratiques', before: before.practicalInfo, after: after.practicalInfo },
+  ]
+
+  return fields
+    .filter(f => displayValue(f.before) !== displayValue(f.after))
+    .map(f => ({
+      field: f.field,
+      label: f.label,
+      before: displayValue(f.before) || '(vide)',
+      after: displayValue(f.after) || '(vide)',
+    }))
+}
+
 export async function updateSubmissionAfterChanges(input: {
   editToken: string
   pepper: string
@@ -633,7 +688,7 @@ export async function updateSubmissionAfterChanges(input: {
   const submission = await loadSubmissionByEditToken(input.editToken, input.pepper)
   const now = nowIso()
 
-  const patch = {
+  const nextValues = {
     title: input.title,
     description: input.description,
     category: input.category,
@@ -645,6 +700,15 @@ export async function updateSubmissionAfterChanges(input: {
     organizerName: input.organizerName ?? null,
     sourceUrl: input.sourceUrl ?? null,
     practicalInfo: input.practicalInfo ?? null,
+  }
+
+  const changes = buildSubmissionChanges(submission, nextValues)
+  const summary = changes.length
+    ? `Champs modifiés : ${changes.map(c => c.label).join(', ')}.`
+    : 'Aucun champ modifié (renvoi sans changement).'
+
+  const patch = {
+    ...nextValues,
     moderationStatus: 'pending_moderation' as const,
     // Conserver le message admin pour l’historique ; le statut repasse en file
     editTokenDigest: null as string | null,
@@ -652,8 +716,19 @@ export async function updateSubmissionAfterChanges(input: {
     updatedAt: now,
   }
 
+  const auditMeta = { message: summary, changes }
+
   if (useMockDb()) {
     Object.assign(submission, patch)
+    getMockStore().audit.push({
+      id: newId(),
+      action: 'submission.resubmitted',
+      entityType: 'event_submission',
+      entityId: submission.id,
+      actorId: submission.proposerEmail,
+      createdAt: now,
+      metadata: auditMeta,
+    })
   }
   else {
     const supabase = getServiceSupabase()
@@ -675,9 +750,16 @@ export async function updateSubmissionAfterChanges(input: {
       updated_at: now,
     }).eq('id', submission.id)
     if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+    await supabase.from('admin_audit').insert({
+      action: 'submission.resubmitted',
+      entity_type: 'event_submission',
+      entity_id: submission.id,
+      actor_id: submission.proposerEmail,
+      metadata: auditMeta,
+    })
   }
 
-  return { ok: true, id: submission.id }
+  return { ok: true, id: submission.id, changesCount: changes.length }
 }
 
 /** Remet une proposition « modifications demandées » en file de modération. */

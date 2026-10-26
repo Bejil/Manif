@@ -1,17 +1,26 @@
 import { getMockStore } from './mock-store'
 import { getServiceSupabase, useMockDb } from '../utils/supabase'
 
+export interface AdminHistoryChange {
+  field: string
+  label: string
+  before: string
+  after: string
+}
+
 export interface AdminHistoryEntry {
   id: string
   action: string
   label: string
   detail: string | null
+  changes: AdminHistoryChange[] | null
   actorId: string
   createdAt: string
 }
 
 const ACTION_LABELS: Record<string, string> = {
   'submission.changes_requested': 'Demande de modifications',
+  'submission.resubmitted': 'Proposition mise à jour par le proposant',
   'submission.reject': 'Refus',
   'submission.approve': 'Approbation / publication',
   'submission.reopen': 'Remise en modération',
@@ -26,13 +35,58 @@ function labelFor(action: string): string {
   return ACTION_LABELS[action] || action
 }
 
+function changesFromMetadata(
+  meta: Record<string, unknown> | null | undefined,
+): AdminHistoryChange[] | null {
+  const raw = meta?.changes
+  if (!Array.isArray(raw) || !raw.length) return null
+  const out: AdminHistoryChange[] = []
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue
+    const r = row as Record<string, unknown>
+    if (typeof r.label !== 'string' || typeof r.before !== 'string' || typeof r.after !== 'string') continue
+    out.push({
+      field: typeof r.field === 'string' ? r.field : '',
+      label: r.label,
+      before: r.before,
+      after: r.after,
+    })
+  }
+  return out.length ? out : null
+}
+
 function detailFromMetadata(meta: Record<string, unknown> | null | undefined): string | null {
   if (!meta) return null
+  const changes = changesFromMetadata(meta)
+  if (changes?.length) {
+    return changes
+      .map(c => `${c.label} :\n  Avant : ${c.before || '(vide)'}\n  Après : ${c.after || '(vide)'}`)
+      .join('\n\n')
+  }
   const message = meta.message
   const reason = meta.reason
   if (typeof message === 'string' && message.trim()) return message.trim()
   if (typeof reason === 'string' && reason.trim()) return reason.trim()
   return null
+}
+
+function mapAuditRow(row: {
+  id: string
+  action: string
+  actorId: string
+  createdAt: string
+  metadata?: Record<string, unknown> | null
+}): AdminHistoryEntry {
+  const meta = row.metadata ?? null
+  return {
+    id: row.id,
+    action: row.action,
+    label: labelFor(row.action),
+    detail: detailFromMetadata(meta),
+    changes: changesFromMetadata(meta),
+    actorId: row.actorId,
+    createdAt: row.createdAt,
+  }
 }
 
 export async function listEntityHistory(
@@ -43,13 +97,12 @@ export async function listEntityHistory(
     return getMockStore().audit
       .filter(a => a.entityType === entityType && a.entityId === entityId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .map(a => ({
+      .map(a => mapAuditRow({
         id: a.id,
         action: a.action,
-        label: labelFor(a.action),
-        detail: detailFromMetadata(a.metadata as Record<string, unknown> | undefined),
         actorId: a.actorId,
         createdAt: a.createdAt,
+        metadata: a.metadata as Record<string, unknown> | undefined,
       }))
   }
 
@@ -63,13 +116,12 @@ export async function listEntityHistory(
     .limit(100)
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
-  return (data ?? []).map(row => ({
+  return (data ?? []).map(row => mapAuditRow({
     id: row.id as string,
     action: row.action as string,
-    label: labelFor(row.action as string),
-    detail: detailFromMetadata(row.metadata as Record<string, unknown> | null),
     actorId: row.actor_id as string,
     createdAt: row.created_at as string,
+    metadata: row.metadata as Record<string, unknown> | null,
   }))
 }
 
