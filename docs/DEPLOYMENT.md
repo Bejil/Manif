@@ -11,7 +11,7 @@
 ## Configuration Supabase
 
 1. Créer un projet PostgreSQL
-2. Exécuter les migrations `supabase/migrations/001` → `006` dans l’ordre (SQL Editor)
+2. Exécuter les migrations `supabase/migrations/001` → `008` dans l’ordre (SQL Editor)
 3. Optionnel : `supabase/seed.sql` (événements de démarrage — remplacer par de vraies données en prod)
 4. Copier `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` dans les secrets serveur
 5. Vérifier que RLS est actif et qu'aucune politique publique n'expose `engagements` / e-mails

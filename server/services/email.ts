@@ -71,8 +71,10 @@ export function buildChangesRequestedEmail(opts: {
   siteUrl: string
   title: string
   message: string
+  editToken: string
 }) {
   const base = opts.siteUrl.replace(/\/$/, '')
+  const editLink = `${base}/proposer?edit=${encodeURIComponent(opts.editToken)}`
   const subject = `Modifications demandées — « ${opts.title} » — Manif'`
   const text = [
     `Concernant votre proposition « ${opts.title} » sur Manif' :`,
@@ -81,7 +83,8 @@ export function buildChangesRequestedEmail(opts: {
     '',
     opts.message,
     '',
-    `Vous pouvez répondre à cet e-mail ou renvoyer une proposition mise à jour via ${base}/proposer.`,
+    'Modifiez votre proposition via ce lien (valable 14 jours) :',
+    editLink,
     '',
     '— Manif\' (plateforme citoyenne indépendante)',
   ].join('\n')
@@ -90,10 +93,10 @@ export function buildChangesRequestedEmail(opts: {
     <p>Concernant votre proposition <strong>${escapeHtml(opts.title)}</strong> sur Manif' :</p>
     <p>L’équipe de modération souhaite des précisions ou des corrections avant publication :</p>
     <blockquote style="border-left:3px solid #6735B6;padding-left:12px;color:#454545;white-space:pre-wrap;">${escapeHtml(opts.message)}</blockquote>
-    <p>Vous pouvez répondre à cet e-mail ou <a href="${base}/proposer">renvoyer une proposition mise à jour</a>.</p>
+    <p><a href="${editLink}">Modifier et renvoyer ma proposition</a> (lien valable 14 jours)</p>
   `
 
-  return { subject, text, html }
+  return { subject, text, html, editLink }
 }
 
 function escapeHtml(s: string) {

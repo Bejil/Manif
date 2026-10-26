@@ -85,6 +85,10 @@ export function rowToSubmission(row: Record<string, unknown>): EventSubmissionRe
     verificationExpiresAt: row.verification_expires_at
       ? normalizeTs(row.verification_expires_at)
       : null,
+    editTokenDigest: (row.edit_token_digest as string | null) ?? null,
+    editTokenExpiresAt: row.edit_token_expires_at
+      ? normalizeTs(row.edit_token_expires_at)
+      : null,
     moderationStatus: row.moderation_status as EventSubmissionRecord['moderationStatus'],
     rejectionReason: (row.rejection_reason as string | null) ?? null,
     publishedEventId: (row.published_event_id as string | null) ?? null,

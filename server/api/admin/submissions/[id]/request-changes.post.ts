@@ -20,5 +20,6 @@ export default defineEventHandler(async (event) => {
     admin.email,
     parsed.data.message,
     config.public.siteUrl,
+    config.participationTokenPepper,
   )
 })

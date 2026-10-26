@@ -27,6 +27,9 @@ export interface EventSubmissionRecord {
   verificationStatus: SubmissionVerificationStatus
   verificationTokenDigest: string | null
   verificationExpiresAt: string | null
+  /** Jeton e-mail pour éditer après « modifications demandées » */
+  editTokenDigest: string | null
+  editTokenExpiresAt: string | null
   moderationStatus: SubmissionModerationStatus
   rejectionReason: string | null
   publishedEventId: string | null

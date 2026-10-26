@@ -3,7 +3,7 @@ import type { EventSubmissionRecord } from '#shared/types/submission'
 import type { EventRecord } from '#shared/types/event'
 import { createEventSlug, ensureUniqueSlug } from '#shared/utils/slug'
 import { computeLocationRevealAt } from '#shared/utils/location'
-import { digestVerificationToken, randomToken } from '../utils/crypto'
+import { digestEditToken, digestVerificationToken, randomToken } from '../utils/crypto'
 import { badRequest, notFound } from '../utils/errors'
 import { rowToSubmission } from '../utils/mappers'
 import { getServiceSupabase, useMockDb } from '../utils/supabase'
@@ -25,7 +25,12 @@ function maskEmail(email: string) {
 }
 
 function sanitizeSubmission(s: EventSubmissionRecord, opts?: { includeEmail?: boolean }) {
-  const { proposerEmail, verificationTokenDigest, ...rest } = s
+  const {
+    proposerEmail,
+    verificationTokenDigest: _v,
+    editTokenDigest: _e,
+    ...rest
+  } = s
   return {
     ...rest,
     proposerEmailMasked: maskEmail(proposerEmail),
@@ -78,6 +83,8 @@ export async function createSubmission(input: {
     verificationStatus: 'pending' as const,
     verificationTokenDigest: digest,
     verificationExpiresAt: expires,
+    editTokenDigest: null,
+    editTokenExpiresAt: null,
     moderationStatus: 'awaiting_verification' as const,
     rejectionReason: null,
     publishedEventId: null,
@@ -457,6 +464,7 @@ export async function requestSubmissionChanges(
   actorId: string,
   message: string,
   siteUrl: string,
+  pepper: string,
 ) {
   ensureSeeded()
   const submission = await loadRawSubmission(id)
@@ -471,9 +479,15 @@ export async function requestSubmissionChanges(
   const trimmed = message.trim()
   if (trimmed.length < 10) throw badRequest('Précisez la demande (10 caractères minimum).')
 
+  const rawEditToken = randomToken(32)
+  const editDigest = digestEditToken(rawEditToken, pepper)
+  const editExpires = DateTime.utc().plus({ days: 14 }).toISO()!
+
   if (useMockDb()) {
     submission.moderationStatus = 'changes_requested'
     submission.rejectionReason = trimmed
+    submission.editTokenDigest = editDigest
+    submission.editTokenExpiresAt = editExpires
     submission.updatedAt = now
     getMockStore().audit.push({
       id: newId(),
@@ -490,6 +504,8 @@ export async function requestSubmissionChanges(
     const { error } = await supabase.from('event_submissions').update({
       moderation_status: 'changes_requested',
       rejection_reason: trimmed,
+      edit_token_digest: editDigest,
+      edit_token_expires_at: editExpires,
       updated_at: now,
     }).eq('id', id)
     if (error) throw createError({ statusCode: 500, statusMessage: error.message })
@@ -506,6 +522,7 @@ export async function requestSubmissionChanges(
     siteUrl,
     title: submission.title,
     message: trimmed,
+    editToken: rawEditToken,
   })
   const sent = await sendEmail({
     to: submission.proposerEmail,
@@ -514,7 +531,148 @@ export async function requestSubmissionChanges(
     text: email.text,
   })
 
-  return { ok: true, emailMocked: sent.mocked }
+  return {
+    ok: true,
+    emailMocked: sent.mocked,
+    ...(import.meta.dev ? { devEditLink: email.editLink } : {}),
+  }
+}
+
+async function loadSubmissionByEditToken(
+  token: string,
+  pepper: string,
+): Promise<EventSubmissionRecord> {
+  ensureSeeded()
+  const digest = digestEditToken(token, pepper)
+
+  let submission: EventSubmissionRecord | null = null
+  if (useMockDb()) {
+    submission = getMockStore().submissions.find(s => s.editTokenDigest === digest) ?? null
+  }
+  else {
+    const supabase = getServiceSupabase()
+    const { data, error } = await supabase
+      .from('event_submissions')
+      .select('*')
+      .eq('edit_token_digest', digest)
+      .maybeSingle()
+    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+    submission = data ? rowToSubmission(data) : null
+  }
+
+  if (!submission) throw notFound('Lien de modification invalide ou déjà utilisé')
+  if (submission.moderationStatus !== 'changes_requested') {
+    throw badRequest('Cette proposition n’est plus en attente de modifications.')
+  }
+  if (
+    !submission.editTokenExpiresAt
+    || DateTime.fromISO(submission.editTokenExpiresAt) < DateTime.utc()
+  ) {
+    throw badRequest('Ce lien de modification a expiré (14 jours).')
+  }
+  return submission
+}
+
+/** Données formulaire pour le proposant (jeton e-mail). */
+export async function getSubmissionForEdit(token: string, pepper: string) {
+  const s = await loadSubmissionByEditToken(token, pepper)
+  const tz = timezoneFromPostalOrCity(null, s.cityName)
+  let date = ''
+  let startTime = ''
+  let endTime = ''
+  let dateToConfirm = !s.startAt
+  if (s.startAt) {
+    const start = DateTime.fromISO(s.startAt, { setZone: true }).setZone(tz)
+    date = start.toFormat('yyyy-MM-dd')
+    startTime = start.toFormat('HH:mm')
+    if (s.endAt) {
+      const end = DateTime.fromISO(s.endAt, { setZone: true }).setZone(tz)
+      endTime = end.toFormat('HH:mm')
+    }
+  }
+  return {
+    id: s.id,
+    title: s.title,
+    description: s.description,
+    category: s.category,
+    cityName: s.cityName,
+    locationName: s.locationName,
+    locationRevealHoursBefore: s.locationRevealHoursBefore,
+    dateToConfirm,
+    date,
+    startTime,
+    endTime,
+    organizerName: s.organizerName ?? '',
+    sourceUrl: s.sourceUrl ?? '',
+    practicalInfo: s.practicalInfo ?? '',
+    proposerEmailMasked: maskEmail(s.proposerEmail),
+    adminMessage: s.rejectionReason,
+  }
+}
+
+export async function updateSubmissionAfterChanges(input: {
+  editToken: string
+  pepper: string
+  title: string
+  description: string
+  category: EventSubmissionRecord['category']
+  cityName: string
+  locationName: string
+  locationRevealHoursBefore?: number | null
+  startAt: string | null
+  endAt: string | null
+  organizerName?: string
+  sourceUrl?: string
+  practicalInfo?: string
+}) {
+  const submission = await loadSubmissionByEditToken(input.editToken, input.pepper)
+  const now = nowIso()
+
+  const patch = {
+    title: input.title,
+    description: input.description,
+    category: input.category,
+    cityName: input.cityName,
+    locationName: input.locationName,
+    locationRevealHoursBefore: input.locationRevealHoursBefore ?? null,
+    startAt: input.startAt,
+    endAt: input.endAt,
+    organizerName: input.organizerName ?? null,
+    sourceUrl: input.sourceUrl ?? null,
+    practicalInfo: input.practicalInfo ?? null,
+    moderationStatus: 'pending_moderation' as const,
+    // Conserver le message admin pour l’historique ; le statut repasse en file
+    editTokenDigest: null as string | null,
+    editTokenExpiresAt: null as string | null,
+    updatedAt: now,
+  }
+
+  if (useMockDb()) {
+    Object.assign(submission, patch)
+  }
+  else {
+    const supabase = getServiceSupabase()
+    const { error } = await supabase.from('event_submissions').update({
+      title: patch.title,
+      description: patch.description,
+      category: patch.category,
+      city_name: patch.cityName,
+      location_name: patch.locationName,
+      location_reveal_hours_before: patch.locationRevealHoursBefore,
+      start_at: patch.startAt,
+      end_at: patch.endAt,
+      organizer_name: patch.organizerName,
+      source_url: patch.sourceUrl,
+      practical_info: patch.practicalInfo,
+      moderation_status: patch.moderationStatus,
+      edit_token_digest: null,
+      edit_token_expires_at: null,
+      updated_at: now,
+    }).eq('id', submission.id)
+    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  }
+
+  return { ok: true, id: submission.id }
 }
 
 /** Remet une proposition « modifications demandées » en file de modération. */

@@ -69,6 +69,11 @@ export const submissionVerifySchema = z.object({
   token: z.string().min(20).max(200),
 })
 
+/** Mise à jour après « modifications demandées » — e-mail figé côté serveur */
+export const submissionEditSchema = submissionCreateSchema.omit({ proposerEmail: true }).extend({
+  editToken: z.string().min(20).max(200),
+})
+
 export const engagementUpsertSchema = z.object({
   action: z.enum([
     'support',
