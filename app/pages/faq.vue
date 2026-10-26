@@ -22,7 +22,7 @@ useHead({
           name: item.q,
           acceptedAnswer: {
             '@type': 'Answer',
-            text: item.a,
+            text: item.a.replace(/\n\n/g, ' '),
           },
         })),
       }),
@@ -37,8 +37,8 @@ useHead({
       <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#9C6EE8]">FAQ</p>
       <h1 class="mf-display mf-h2 mt-3">Questions fréquentes</h1>
       <p class="mt-4 max-w-2xl text-[#FFFCF4]/75">
-        Compte, neutralité, confidentialité, proposition et comptage :
-        tout ce qu’il faut savoir pour utiliser Manif' sereinement.
+        Trouver une manifestation, proposer un événement, comptage citoyen,
+        confidentialité et signalement : les réponses pour utiliser Manif' sereinement.
       </p>
     </PageHero>
 
@@ -55,9 +55,11 @@ useHead({
               <span class="font-bold text-[#111111]">{{ item.q }}</span>
               <span class="shrink-0 text-lg text-[#636363]" aria-hidden="true">{{ open === i ? '−' : '+' }}</span>
             </button>
-            <p v-if="open === i" class="px-5 pb-4 text-sm leading-relaxed text-[#454545]">
-              {{ item.a }}
-            </p>
+            <div v-if="open === i" class="space-y-3 px-5 pb-4 text-sm leading-relaxed text-[#454545]">
+              <p v-for="(para, pi) in item.a.split('\n\n')" :key="pi">
+                {{ para }}
+              </p>
+            </div>
           </div>
         </div>
 

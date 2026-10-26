@@ -434,9 +434,11 @@ const engagementBlocks = [
               <span class="font-bold text-[#111111]">{{ item.q }}</span>
               <span class="shrink-0 text-lg text-[#636363]" aria-hidden="true">{{ openFaq === i ? '−' : '+' }}</span>
             </button>
-            <p v-if="openFaq === i" class="px-5 pb-4 text-sm leading-relaxed text-[#454545]">
-              {{ item.a }}
-            </p>
+            <div v-if="openFaq === i" class="space-y-3 px-5 pb-4 text-sm leading-relaxed text-[#454545]">
+              <p v-for="(para, pi) in item.a.split('\n\n')" :key="pi">
+                {{ para }}
+              </p>
+            </div>
           </div>
         </div>
       </div>
