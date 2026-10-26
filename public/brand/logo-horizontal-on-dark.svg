@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" fill="none" role="img" aria-label="Manif'">
+  <rect x="2" y="4" width="48" height="48" rx="12" fill="#F4F0E7"/>
+  <path d="M14 36c4.5-7.5 10.5-12 16.5-13.5" stroke="#182B35" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M12.5 30c6-9 13.5-13.5 21-14.2" stroke="#BAD9BF" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M15.5 40.5c5.2-6 12-9 18-9" stroke="#E8664E" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="37" cy="22" r="4.2" fill="#182B35"/>
+  <circle cx="37" cy="22" r="1.8" fill="#E9C96B"/>
+  <text x="64" y="38" font-family="Syne, Figtree, ui-sans-serif, system-ui, sans-serif" font-size="32" font-weight="700" fill="#F4F0E7" letter-spacing="-0.04em">Manif'</text>
+</svg>

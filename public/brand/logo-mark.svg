@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Manif'">
+  <!-- Marque « chœur » : arcs de voix + nœud de rassemblement -->
+  <rect width="64" height="64" rx="14" fill="#182B35"/>
+  <path d="M18 42c6-10 14-16 22-18" stroke="#BAD9BF" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M16 34c8-12 18-18 28-19" stroke="#E9C96B" stroke-width="3.2" stroke-linecap="round" opacity="0.95"/>
+  <path d="M20 48c7-8 16-12 24-12" stroke="#E8664E" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="44" cy="28" r="5.5" fill="#F4F0E7"/>
+  <circle cx="44" cy="28" r="2.4" fill="#E8664E"/>
+</svg>

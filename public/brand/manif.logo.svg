@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" role="img" aria-labelledby="title desc">
+<title id="title">Manif' — symbole éditorial</title>
+<desc id="desc">Trois bandeaux décalés évoquant des voix et des affiches</desc>
+<rect width="80" height="80" rx="11" fill="#111111"/>
+<path d="M12 17h51v14H12z" fill="#9C6EE8"/>
+<path d="M19 33h49v14H19z" fill="#FFFCF4"/>
+<path d="M12 49h40v14H12z" fill="#D1271C"/>
+</svg>

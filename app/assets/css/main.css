@@ -1,0 +1,218 @@
+@import './manif.tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: var(--mf-paper);
+    color: var(--mf-ink);
+    font-family: var(--mf-font-body);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--mf-focus);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--mf-violet);
+    color: var(--mf-ink);
+  }
+}
+
+@layer components {
+  /* Même largeur que le contenu home / charte (.mf-container) : 1200px max */
+  .container-page {
+    width: min(calc(100% - 40px), var(--mf-container));
+    margin-inline: auto;
+  }
+
+  @media (max-width: 640px) {
+    .container-page {
+      width: min(calc(100% - 32px), var(--mf-container));
+    }
+  }
+
+  .font-display,
+  .mf-display {
+    font-family: var(--mf-font-display);
+    text-transform: uppercase;
+    font-weight: 400;
+    /* > 1 pour que les bandeaux ne recouvrent pas la ligne précédente */
+    line-height: 1.16;
+    letter-spacing: 0.005em;
+    isolation: isolate;
+  }
+
+  .mf-h1 {
+    font-size: clamp(44px, 7.5vw, 110px);
+  }
+
+  .mf-h2 {
+    font-size: clamp(32px, 4.3vw, 60px);
+  }
+
+  .mf-h3 {
+    font-size: clamp(26px, 3vw, 40px);
+  }
+
+  /*
+   * Bandeaux : fond en ::before (z-index -1) pour rester derrière le texte
+   * des lignes voisines ; padding vertical minimal pour éviter le chevauchement.
+   */
+  .mf-strip {
+    position: relative;
+    z-index: 0;
+    display: inline;
+    padding: 0 0.14em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    background: transparent !important;
+  }
+
+  .mf-strip::before {
+    content: '';
+    position: absolute;
+    inset: 0.08em 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .mf-strip--violet {
+    color: var(--mf-ink);
+  }
+
+  .mf-strip--violet::before {
+    background: var(--mf-violet);
+  }
+
+  .mf-strip--red {
+    color: var(--mf-paper);
+  }
+
+  .mf-strip--red::before {
+    background: var(--mf-red);
+  }
+
+  .mf-count {
+    font-family: var(--mf-font-display);
+    font-size: clamp(36px, 4vw, 56px);
+    letter-spacing: 0.01em;
+    line-height: 0.95;
+    text-transform: uppercase;
+  }
+
+  .surface-card {
+    background: var(--mf-surface);
+    border: 1px solid var(--mf-border);
+    border-radius: var(--mf-radius-md);
+    box-shadow: var(--mf-shadow-card);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font: 700 11px/1.1 var(--mf-font-body);
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    padding: 8px 10px;
+    border-radius: 3px;
+  }
+
+  .map-shell {
+    position: relative;
+    height: 100%;
+    min-height: 320px;
+    width: 100%;
+    overflow: hidden;
+    border-radius: var(--mf-radius-lg);
+    border: 1px solid var(--mf-border);
+    background: var(--mf-gray-100);
+    box-shadow: var(--mf-shadow-card);
+  }
+
+  .prose-manif {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--mf-ink);
+  }
+
+  .prose-manif h2 {
+    font-family: var(--mf-font-display);
+    text-transform: uppercase;
+    font-size: clamp(26px, 3vw, 40px);
+    line-height: 1.16;
+    margin: 2.5rem 0 0.75rem;
+    color: var(--mf-ink);
+  }
+
+  .prose-manif h3 {
+    font-family: var(--mf-font-body);
+    font-weight: 700;
+    font-size: 1.125rem;
+    margin: 1.5rem 0 0.5rem;
+  }
+
+  .prose-manif ul {
+    margin: 0.75rem 0;
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+
+  .prose-manif a {
+    color: var(--mf-violet-deep);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .maplibregl-ctrl-group {
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 4px !important;
+    box-shadow: var(--mf-shadow-card) !important;
+  }
+
+  .maplibregl-popup-content {
+    border-radius: 8px !important;
+    border: 1px solid var(--mf-border) !important;
+    box-shadow: var(--mf-shadow-card) !important;
+    padding: 0 !important;
+    font-family: var(--mf-font-body) !important;
+  }
+
+  .maplibregl-popup-close-button {
+    font-size: 18px !important;
+    padding: 4px 8px !important;
+  }
+}
+
+@layer utilities {
+  .animate-fade-up {
+    animation: mf-fade-up 0.45s ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-up {
+      animation: none;
+    }
+  }
+}
+
+@keyframes mf-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

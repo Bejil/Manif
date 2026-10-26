@@ -1,0 +1,256 @@
+<script setup lang="ts">
+import type { EventPublic } from '#shared/types/event'
+import { REPORT_REASONS } from '#shared/constants/statuses'
+
+const route = useRoute()
+const config = useRuntimeConfig()
+const slug = computed(() => route.params.slug as string)
+
+const { data: event, error } = await useFetch<EventPublic>(() => `/api/events/${slug.value}`)
+
+if (error.value || !event.value) {
+  throw createError({ statusCode: 404, statusMessage: 'Manifestation introuvable' })
+}
+
+const { formatDate, formatTimeRange, categoryLabel } = useEventFormat()
+const { share } = useShare()
+const shareFeedback = ref<string | null>(null)
+
+const ogImage = computed(
+  () => `${config.public.siteUrl}/api/og/event/${event.value!.slug}`,
+)
+
+useSeoMeta({
+  title: () => `${event.value!.title} — ${event.value!.cityName} | Manif'`,
+  description: () => {
+    const e = event.value!
+    const date = formatDate(e.startAt, e.timezone)
+    const excerpt = e.description.replace(/\s+/g, ' ').trim().slice(0, 110)
+    return `${e.cityName} · ${date}. ${excerpt}${excerpt.length >= 110 ? '…' : ''}`
+  },
+  ogTitle: () => `${event.value!.title} — Manif'`,
+  ogDescription: () => `${event.value!.cityName} · ${formatDate(event.value!.startAt, event.value!.timezone)} · Soutenez ou déclarez votre participation`,
+  ogUrl: () => `${config.public.siteUrl}/manifestations/${event.value!.slug}`,
+  ogImage: () => ogImage.value,
+  twitterCard: 'summary_large_image',
+  twitterImage: () => ogImage.value,
+})
+
+useHead({
+  link: [{ rel: 'canonical', href: `${config.public.siteUrl}/manifestations/${event.value!.slug}` }],
+})
+
+async function onShare() {
+  const res = await share({
+    title: event.value!.title,
+    text: `${event.value!.title} — ${event.value!.cityName} · Voir sur Manif'`,
+    url: `${config.public.siteUrl}/manifestations/${event.value!.slug}`,
+  })
+  shareFeedback.value = res.method === 'clipboard' ? 'Lien copié dans le presse-papiers' : null
+}
+
+const reportOpen = ref(false)
+const reportReason = ref('wrong_date')
+const reportDetails = ref('')
+const reportOk = ref(false)
+const reportError = ref<string | null>(null)
+const reportTurnstile = ref('')
+const reportTurnstileRef = ref<{ reset: () => void } | null>(null)
+
+const mapPoint = computed(() => {
+  const e = event.value
+  if (!e || e.mapLatitude == null || e.mapLongitude == null || e.mapPrecision === 'none') {
+    return null
+  }
+  return {
+    latitude: e.mapLatitude,
+    longitude: e.mapLongitude,
+    label: e.locationRevealed ? e.locationName : e.cityName,
+    zoom: e.mapPrecision === 'city' ? 11 : 14,
+    cityOnly: e.mapPrecision === 'city',
+  }
+})
+
+async function submitReport() {
+  reportError.value = null
+  try {
+    await $fetch(`/api/events/${event.value!.id}/reports`, {
+      method: 'POST',
+      body: {
+        reason: reportReason.value,
+        details: reportDetails.value,
+        turnstileToken: reportTurnstile.value || undefined,
+      },
+    })
+    reportOk.value = true
+    reportOpen.value = false
+  }
+  catch (e: unknown) {
+    const err = e as { data?: { statusMessage?: string } }
+    reportError.value = err?.data?.statusMessage || 'Envoi impossible'
+    reportTurnstileRef.value?.reset()
+  }
+}
+</script>
+
+<template>
+  <div v-if="event">
+    <PageHero compact>
+      <nav class="mb-6 text-sm text-[#FFFCF4]/60">
+        <NuxtLink to="/#agenda" class="font-medium hover:text-[#9C6EE8]">Agenda</NuxtLink>
+        <span aria-hidden="true"> / </span>
+        <span class="text-[#FFFCF4]">{{ event.cityName }}</span>
+      </nav>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <StatusBadge :status="event.displayStatus" />
+        <span
+          v-if="!event.startAt"
+          class="chip bg-[#805200] text-[#FFFCF4]"
+        >Date à venir</span>
+        <span class="chip bg-white/10 text-[#FFFCF4]/80">{{ categoryLabel(event.category) }}</span>
+      </div>
+
+      <p class="mt-5 inline-block">
+        <HighlightedText :tone="event.startAt ? 'red' : 'violet'">
+          {{ formatDate(event.startAt, event.timezone) }}
+        </HighlightedText>
+      </p>
+
+      <h1 class="mf-display mf-h2 mt-4 max-w-4xl text-[#FFFCF4]">
+        {{ event.title }}
+      </h1>
+
+      <p class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[#FFFCF4]/75">
+        <span class="inline-flex items-center gap-1.5">
+          <BrandIcon name="map" :size="16" />
+          <template v-if="event.locationRevealed">
+            {{ event.locationName }}, {{ event.cityName }}
+          </template>
+          <template v-else>
+            Localisation à venir · {{ event.cityName }}
+          </template>
+        </span>
+        <span class="inline-flex items-center gap-1.5">
+          <BrandIcon name="calendar" :size="16" />
+          {{ formatTimeRange(event.startAt, event.endAt, event.endIsEstimated, event.timezone) }}
+        </span>
+      </p>
+      <p
+        v-if="!event.locationRevealed"
+        class="mt-3 max-w-2xl text-sm text-[#FFFCF4]/65"
+      >
+        Le lieu précis sera communiqué avant le début de la manifestation.
+        La ville reste affichée pour vous situer.
+      </p>
+      <p
+        v-else-if="event.latitude == null || event.longitude == null"
+        class="mt-3 max-w-2xl text-sm text-[#FFFCF4]/65"
+      >
+        Lieu indiqué — position sur la carte à venir.
+      </p>
+    </PageHero>
+
+    <div class="container-page grid gap-8 py-8 lg:grid-cols-[1fr_22rem] lg:gap-10">
+      <article>
+        <div class="surface-card grid gap-4 p-5 sm:grid-cols-2">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Horaire</p>
+            <p class="mt-1 font-semibold text-[#111111]">
+              {{ formatTimeRange(event.startAt, event.endAt, event.endIsEstimated, event.timezone) }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Ville</p>
+            <p class="mt-1 font-semibold text-[#111111]">{{ event.cityName }}</p>
+          </div>
+          <div v-if="event.organizerName">
+            <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Organisateur</p>
+            <p class="mt-1 font-semibold text-[#111111]">{{ event.organizerName }}</p>
+          </div>
+          <div v-if="event.sourceUrl">
+            <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Source</p>
+            <a
+              :href="event.sourceUrl"
+              class="mt-1 inline-block break-all text-sm font-semibold text-[#6735B6] hover:underline"
+              rel="noopener noreferrer"
+              target="_blank"
+            >{{ event.sourceUrl }}</a>
+          </div>
+        </div>
+
+        <div class="prose-manif mt-8 whitespace-pre-wrap">
+          {{ event.description }}
+        </div>
+
+        <div v-if="mapPoint" class="mt-8">
+          <p class="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">
+            {{ mapPoint.cityOnly ? 'Ville sur la carte' : 'Lieu sur la carte' }}
+          </p>
+          <ClientOnly>
+            <EventLocationMap
+              :latitude="mapPoint.latitude"
+              :longitude="mapPoint.longitude"
+              :label="mapPoint.label"
+              :zoom="mapPoint.zoom"
+            />
+            <template #fallback>
+              <div class="map-shell flex min-h-[280px] items-center justify-center text-sm text-[#454545] md:min-h-[340px]">
+                Chargement de la carte…
+              </div>
+            </template>
+          </ClientOnly>
+          <p v-if="mapPoint.cityOnly" class="mt-2 text-sm text-[#454545]">
+            Le point de rendez-vous précis sera indiqué avant le début — la carte est centrée sur {{ event.cityName }}.
+          </p>
+        </div>
+
+        <div class="mt-8 flex flex-wrap gap-2">
+          <UiButton variant="outline" @click="onShare">
+            <BrandIcon name="share" :size="16" />
+            Partager
+          </UiButton>
+          <a v-if="event.startAt" :href="`/api/events/${event.id}/calendar`">
+            <UiButton variant="outline" type="button">
+              <BrandIcon name="calendar" :size="16" />
+              Calendrier
+            </UiButton>
+          </a>
+          <UiButton variant="outline" @click="reportOpen = true">
+            Signaler
+          </UiButton>
+        </div>
+        <p v-if="shareFeedback" class="mt-3 text-sm font-semibold text-[#4D257D]" role="status">{{ shareFeedback }}</p>
+        <p v-if="reportOk" class="mt-3 text-sm font-semibold text-[#206C4D]" role="status">Signalement envoyé. Merci.</p>
+      </article>
+
+      <aside class="space-y-4 lg:sticky lg:top-24 lg:self-start">
+        <ParticipationPanel :event="event" />
+      </aside>
+    </div>
+
+    <UiModal :open="reportOpen" title="Signaler une erreur" @close="reportOpen = false">
+      <form class="space-y-4" @submit.prevent="submitReport">
+        <UiSelect
+          id="report-reason"
+          v-model="reportReason"
+          label="Motif"
+          :options="REPORT_REASONS.map(r => ({ value: r.id, label: r.label }))"
+        />
+        <UiTextarea
+          id="report-details"
+          v-model="reportDetails"
+          label="Précisions (optionnel)"
+          hint="Si renseignées, 10 caractères minimum."
+          :rows="3"
+        />
+        <TurnstileWidget ref="reportTurnstileRef" v-model="reportTurnstile" action="report" />
+        <p v-if="reportError" class="text-sm text-[#AD291F]">{{ reportError }}</p>
+        <div class="flex justify-end gap-2">
+          <UiButton type="button" variant="ghost" @click="reportOpen = false">Annuler</UiButton>
+          <UiButton type="submit">Envoyer</UiButton>
+        </div>
+      </form>
+    </UiModal>
+  </div>
+</template>

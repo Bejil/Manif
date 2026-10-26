@@ -1,0 +1,71 @@
+/* MANIF' — Design tokens 1.0 | Source: supplied editorial poster | 25 Oct 2026 */
+/* Requires @font-face or hosted Anton + Inter. Avoid bundling font files in deliverables. */
+:root {
+  --mf-ink: #111111;
+  --mf-paper: #FFFCF4;
+  --mf-white: #FFFFFF;
+  --mf-violet: #9C6EE8;        /* Poster violet. Large text / large accents only. */
+  --mf-violet-deep: #6735B6;   /* Accessible small white copy on violet. */
+  --mf-violet-wash: #F0E8FC;
+  --mf-red: #D1271C;           /* Poster red, readable with paper/white. */
+  --mf-red-wash: #FDEDEB;
+  --mf-gray-900: #252525;
+  --mf-gray-700: #454545;
+  --mf-gray-500: #636363;
+  --mf-gray-200: #DDDAD3;
+  --mf-gray-100: #F4F1EA;
+  --mf-success: #206C4D;
+  --mf-warning: #805200;
+  --mf-danger: #AD291F;
+  --mf-surface: #FFFFFF;
+  --mf-text: var(--mf-ink);
+  --mf-text-muted: var(--mf-gray-700);
+  --mf-border: var(--mf-gray-200);
+  --mf-focus: var(--mf-violet-deep);
+  --mf-font-display: 'Anton', 'Noto Sans Display ExtraCondensed Black', Impact, 'Arial Narrow', sans-serif;
+  --mf-font-body: 'Inter', Arial, Helvetica, sans-serif;
+  --mf-container: 1200px;
+  --mf-space-1: 4px;
+  --mf-space-2: 8px;
+  --mf-space-3: 12px;
+  --mf-space-4: 16px;
+  --mf-space-6: 24px;
+  --mf-space-8: 32px;
+  --mf-space-12: 48px;
+  --mf-space-16: 64px;
+  --mf-radius-sm: 4px;
+  --mf-radius-md: 8px;
+  --mf-radius-lg: 12px;
+  --mf-shadow-card: 0 8px 30px rgba(17,17,17,.08);
+  --mf-duration-fast: 140ms;
+  --mf-duration-base: 220ms;
+}
+
+/* Opinion/subject categories should never be assigned a political/religious color. */
+/* Color may indicate temporal state but must always be accompanied by a visible label. */
+.mf-container { width:min(calc(100% - 40px),var(--mf-container)); margin-inline:auto; }
+.mf-display { font-family:var(--mf-font-display); text-transform:uppercase; font-weight:900; line-height:.97; letter-spacing:.005em; }
+.mf-h1 { font-size:clamp(44px,7.5vw,110px); }
+.mf-h2 { font-size:clamp(32px,4.3vw,60px); }
+.mf-h3 { font-size:clamp(26px,3vw,40px); }
+.mf-body { font-family:var(--mf-font-body); font-size:16px; line-height:1.6; }
+.mf-strip { display:inline; padding:.01em .13em .06em; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+.mf-strip--violet { color:var(--mf-ink); background:var(--mf-violet); }
+.mf-strip--red { color:var(--mf-paper); background:var(--mf-red); }
+.mf-button { min-height:48px; display:inline-flex; align-items:center; justify-content:center; gap:10px; border:2px solid transparent; border-radius:var(--mf-radius-sm); padding:12px 20px; font:700 14px/1.15 var(--mf-font-body); cursor:pointer; transition:transform var(--mf-duration-fast),background var(--mf-duration-fast),box-shadow var(--mf-duration-fast); }
+.mf-button:hover { transform:translateY(-2px); }
+.mf-button:focus-visible,.mf-link:focus-visible,.mf-input:focus-visible { outline:3px solid var(--mf-focus);outline-offset:3px; }
+.mf-button--primary { background:var(--mf-ink); color:var(--mf-paper); }
+.mf-button--violet { background:var(--mf-violet-deep);color:var(--mf-white); }
+.mf-button--red { background:var(--mf-red); color:var(--mf-white); }
+.mf-button--outline { background:transparent; color:var(--mf-ink); border-color:var(--mf-ink); }
+.mf-card { background:var(--mf-surface); border:1px solid var(--mf-border); border-radius:var(--mf-radius-md); padding:24px; }
+.mf-card--event { border-top:5px solid var(--mf-violet); }
+.mf-input { min-height:48px; width:100%; border:1px solid var(--mf-gray-500);border-radius:var(--mf-radius-sm);padding:12px 14px;background:var(--mf-white); color:var(--mf-ink);font:500 15px var(--mf-font-body); }
+.mf-count { font-family:var(--mf-font-display); font-weight:900; font-size:clamp(36px,4vw,56px);letter-spacing:.01em; }
+.mf-badge { display:inline-flex;align-items:center;gap:7px; font:700 11px/1.1 var(--mf-font-body);letter-spacing:.035em;text-transform:uppercase;padding:8px 10px;border-radius:3px; }
+.mf-badge--upcoming { background:var(--mf-violet-wash); color:#4D257D; }
+.mf-badge--ongoing { background:var(--mf-red-wash); color:#97251B; }
+.mf-badge--ended { background:var(--mf-gray-100); color:var(--mf-gray-700); }
+@media(max-width:640px){.mf-container{width:min(calc(100% - 32px),var(--mf-container));}.mf-card{padding:16px;}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;}}

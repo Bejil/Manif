@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#111111"/>
+  <rect x="80" y="80" width="88" height="88" rx="12" fill="#111111" stroke="#FFFCF4" stroke-width="0"/>
+  <rect x="80" y="80" width="88" height="88" rx="12" fill="#111111"/>
+  <rect x="92" y="98" width="56" height="16" fill="#9C6EE8"/>
+  <rect x="100" y="118" width="54" height="16" fill="#FFFCF4"/>
+  <rect x="92" y="138" width="44" height="16" fill="#D1271C"/>
+  <text x="200" y="145" font-family="Anton, Impact, sans-serif" font-size="64" fill="#FFFCF4">MANIF'</text>
+  <text x="80" y="320" font-family="Anton, Impact, sans-serif" font-size="84" fill="#FFFCF4">TOUTES LES</text>
+  <text x="80" y="410" font-family="Anton, Impact, sans-serif" font-size="84" fill="#9C6EE8">MANIFESTATIONS.</text>
+  <text x="80" y="500" font-family="Anton, Impact, sans-serif" font-size="84" fill="#D1271C">TOUTES LES VOIX.</text>
+</svg>

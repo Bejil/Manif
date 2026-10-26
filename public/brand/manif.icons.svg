@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:none">
+  <!-- Custom editorial 24x24 icons, linecap=square; use currentColor. -->
+  <symbol id="mf-voices" viewBox="0 0 24 24">
+    <path d="M3 4h15v5H3zM6 11h15v5H6zM3 18h13v3H3z" fill="currentColor"/>
+  </symbol>
+  <symbol id="mf-map" viewBox="0 0 24 24">
+    <path d="m2.5 5.5 6.3-2 6.5 2 6.2-2v15l-6.2 2-6.5-2-6.3 2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M8.8 3.5v15M15.3 5.5v15" stroke="currentColor" stroke-width="1.8"/>
+    <circle cx="15.3" cy="10.4" r="2.1" fill="currentColor"/>
+  </symbol>
+  <symbol id="mf-support" viewBox="0 0 24 24">
+    <path d="M12 20.5 4.2 12.9C-.2 8.7 6.5 2.7 12 8.6c5.5-5.9 12.2.1 7.8 4.3z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M9 13.1h6" stroke="currentColor" stroke-width="1.9" stroke-linecap="square"/>
+  </symbol>
+  <symbol id="mf-participate" viewBox="0 0 24 24">
+    <circle cx="8" cy="7.2" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    <path d="M2.7 20v-3.2A5.4 5.4 0 0 1 8.1 11.5h.5c2.8 0 4.7 1.6 5.2 3.8" stroke="currentColor" stroke-width="1.8" fill="none"/>
+    <path d="m14.1 18.1 2.4 2.3 5.1-6.3" stroke="currentColor" stroke-width="2.1" fill="none" stroke-linecap="square"/>
+  </symbol>
+  <symbol id="mf-calendar" viewBox="0 0 24 24">
+    <rect x="3.2" y="5.1" width="17.6" height="15" rx="1" stroke="currentColor" stroke-width="1.9" fill="none"/>
+    <path d="M3.2 9.3h17.6M7.1 3v4.3M16.9 3v4.3" stroke="currentColor" stroke-width="1.9"/>
+    <path d="M7.4 13.5h3.1v3.1H7.4z" fill="currentColor"/>
+  </symbol>
+  <symbol id="mf-share" viewBox="0 0 24 24">
+    <circle cx="18.3" cy="4.6" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    <circle cx="5.5" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    <circle cx="18.3" cy="19.4" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    <path d="m7.8 10.6 8.1-4.6M7.8 13.4l8.1 4.6" stroke="currentColor" stroke-width="1.9"/>
+  </symbol>
+  <symbol id="mf-guide" viewBox="0 0 24 24">
+    <path d="M12 6.3c-3.6-2.4-6.6-2-9-1v14c3.6-1 6.7-1.4 9 1 2.3-2.4 5.4-2 9-1v-14c-2.4-1-5.4-1.4-9 1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M12 6.3v14" stroke="currentColor" stroke-width="1.8"/>
+  </symbol>
+</svg>
