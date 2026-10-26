@@ -16,7 +16,6 @@ export default defineEventHandler(async (event) => {
   const points = await listMapEvents({
     ...parsed.data,
     statuses,
-    pageSize: 500,
   })
 
   return { points }

@@ -87,5 +87,7 @@ export interface EventListQuery {
   city?: string
   page?: number
   pageSize?: number
+  /** Page contenant cet id (sélection carte → liste). */
+  focusId?: string
   bbox?: [number, number, number, number]
 }

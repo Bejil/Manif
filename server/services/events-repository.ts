@@ -92,13 +92,46 @@ function sortEvents(a: EventPublic, b: EventPublic): number {
   return new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
 }
 
-async function attachCounts(events: EventRecord[]): Promise<EventPublic[]> {
-  return Promise.all(
-    events.map(async (e) => {
-      const counts = await getEventCounts(e.id)
-      return toPublic(e, counts)
-    }),
-  )
+/** Colonnes utiles liste/carte — pas de médias ni payloads lourds. */
+const LIST_COLUMNS = [
+  'id', 'slug', 'title', 'description', 'category',
+  'city_name', 'postal_code', 'locality_code', 'country_code', 'timezone',
+  'location_name', 'latitude', 'longitude', 'location_reveal_at',
+  'start_at', 'end_at', 'end_is_estimated', 'organizer_name', 'source_url',
+  'source_verification_status', 'publication_status', 'event_status_override',
+  'created_at', 'updated_at', 'published_at', 'is_demo',
+].join(', ')
+
+async function fetchPublishedForList(): Promise<EventRecord[]> {
+  if (useMockDb()) {
+    ensureSeeded()
+    return getMockStore().events.filter(e => e.publicationStatus === 'published')
+  }
+  const supabase = getServiceSupabase()
+  const { data, error } = await supabase
+    .from('events')
+    .select(LIST_COLUMNS)
+    .eq('publication_status', 'published')
+    .order('start_at', { ascending: true })
+    .limit(2000)
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  return (data ?? []).map(row => rowToEvent({
+    ...row,
+    image_urls: [],
+    video_urls: [],
+  }))
+}
+
+/** Réduit le JSON hydrate (la carte EventCard n’affiche pas ces champs). */
+function slimListItem(event: EventPublic): EventPublic {
+  return {
+    ...event,
+    description: '',
+    imageUrls: [],
+    videoUrls: [],
+    sourceUrl: null,
+    organizerName: null,
+  }
 }
 
 function filterPublic(list: EventPublic[], query: EventListQuery): EventPublic[] {
@@ -131,30 +164,29 @@ function filterPublic(list: EventPublic[], query: EventListQuery): EventPublic[]
 }
 
 export async function listEvents(query: EventListQuery) {
-  const page = query.page ?? 1
-  const pageSize = query.pageSize ?? 30
+  const pageSize = query.pageSize ?? 20
+  let page = query.page ?? 1
 
-  let published: EventRecord[]
-  if (useMockDb()) {
-    ensureSeeded()
-    published = getMockStore().events.filter(e => e.publicationStatus === 'published')
-  }
-  else {
-    const supabase = getServiceSupabase()
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('publication_status', 'published')
-      .order('start_at', { ascending: true })
-      .limit(500)
-    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-    published = (data ?? []).map(rowToEvent)
+  const published = await fetchPublishedForList()
+  // Filtrage sans compteurs (évite N requêtes avant la pagination)
+  const provisional = published.map(e => toPublic(e, { supports: 0, participations: 0 }))
+  const all = filterPublic(provisional, query)
+
+  if (query.focusId) {
+    const idx = all.findIndex(e => e.id === query.focusId)
+    if (idx >= 0) page = Math.floor(idx / pageSize) + 1
   }
 
-  const withCounts = await attachCounts(published)
-  const all = filterPublic(withCounts, query)
   const start = (page - 1) * pageSize
-  return { items: all.slice(start, start + pageSize), total: all.length, page, pageSize }
+  const pageItems = all.slice(start, start + pageSize)
+
+  const countsMap = await getEventCountsBatch(pageItems.map(e => e.id))
+  const items = pageItems.map(e => slimListItem({
+    ...e,
+    counts: countsMap.get(e.id) ?? { supports: 0, participations: 0 },
+  }))
+
+  return { items, total: all.length, page, pageSize }
 }
 
 export async function listAllEventsAdmin() {
@@ -209,8 +241,10 @@ export async function getEventById(id: string): Promise<EventRecord | null> {
 }
 
 export async function listMapEvents(query: EventListQuery): Promise<EventMapPoint[]> {
-  const { items } = await listEvents({ ...query, page: 1, pageSize: 500 })
-  return items
+  const published = await fetchPublishedForList()
+  const provisional = published.map(e => toPublic(e, { supports: 0, participations: 0 }))
+  const filtered = filterPublic(provisional, query)
+  return filtered
     .filter(e => e.latitude != null && e.longitude != null)
     .map(e => ({
       id: e.id,

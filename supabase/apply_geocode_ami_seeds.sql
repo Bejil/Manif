@@ -1,0 +1,48 @@
+-- Met à jour GPS des seeds AMI déjà injectés
+
+UPDATE events SET latitude = 48.86822, longitude = 2.362915, updated_at = now() WHERE slug = 'ami-attentat-raciste-a-trappes-appel-a-rassemblement-2026-10-26-2';
+UPDATE events SET latitude = 48.847488, longitude = 2.329531, updated_at = now() WHERE slug = 'ami-excuser-ou-punir-rencontre-avec-amelie-bescont-2026-10-26-3';
+UPDATE events SET latitude = 48.876006, longitude = 2.360718, updated_at = now() WHERE slug = 'ami-ag-acte-iii-objectif-virons-les-fachos-2026-10-27-5';
+UPDATE events SET latitude = 48.847488, longitude = 2.329531, updated_at = now() WHERE slug = 'ami-la-nature-nous-manque-t-elle-encore-conference-philosophique-de-paul-klotz-2026-10-27-6';
+UPDATE events SET latitude = 48.862458, longitude = 2.39913, updated_at = now() WHERE slug = 'ami-rencontre-autour-du-livre-ce-pays-est-a-nous-tous-2026-10-27-7';
+UPDATE events SET latitude = 48.847488, longitude = 2.329531, updated_at = now() WHERE slug = 'ami-taf-a-la-recherche-du-proletariat-perdu-rencontre-avec-paul-martel-2026-10-28-9';
+UPDATE events SET latitude = 48.863728, longitude = 2.449364, updated_at = now() WHERE slug = 'ami-soiree-antinucleaire-discussion-repas-spectacles-2026-10-29-10';
+UPDATE events SET latitude = 48.845006, longitude = 2.342617, updated_at = now() WHERE slug = 'ami-lancement-de-la-bd-pause-croissance-avec-sophie-bourlet-2026-10-29-11';
+UPDATE events SET latitude = 48.847488, longitude = 2.329531, updated_at = now() WHERE slug = 'ami-economie-de-guerre-lancement-du-livre-de-loic-fournil-2026-10-29-12';
+UPDATE events SET latitude = 48.886099, longitude = 2.382839, updated_at = now() WHERE slug = 'ami-projection-du-film-maximum-tolerated-dose-2026-10-29-13';
+UPDATE events SET latitude = 48.856892, longitude = 2.381633, updated_at = now() WHERE slug = 'ami-rencontre-avec-gerard-haddad-sur-le-theme-violence-et-politique-ujfp-2026-10-29-14';
+UPDATE events SET latitude = 48.886099, longitude = 2.382839, updated_at = now() WHERE slug = 'ami-festival-alimenterre-2026-projection-debat-sur-le-film-etre-s-vivants-2026-10-30-16';
+UPDATE events SET latitude = 48.847488, longitude = 2.329531, updated_at = now() WHERE slug = 'ami-arpentage-du-livre-mondes-post-capitalistes-2026-10-30-17';
+UPDATE events SET latitude = 48.826907, longitude = 2.360165, updated_at = now() WHERE slug = 'ami-reunion-publique-soutien-au-peuple-palestinien-2026-10-31-19';
+UPDATE events SET latitude = 48.856892, longitude = 2.381633, updated_at = now() WHERE slug = 'ami-education-populaire-independance-souverainete-alimentaire-a-la-reunion-2026-10-31-21';
+UPDATE events SET latitude = 48.826907, longitude = 2.360165, updated_at = now() WHERE slug = 'ami-club-de-lecture-queer-et-feministe-tws-2026-11-03-23';
+UPDATE events SET latitude = 48.859, longitude = 2.347, updated_at = now() WHERE slug = 'ami-rencontre-discussion-avec-nicolas-rouille-autour-du-sahara-occidental-2026-11-03-24';
+UPDATE events SET latitude = 48.847488, longitude = 2.329531, updated_at = now() WHERE slug = 'ami-rencontre-avec-noemie-merleau-ponty-2026-11-03-25';
+UPDATE events SET latitude = 48.876006, longitude = 2.360718, updated_at = now() WHERE slug = 'ami-soiree-debat-le-syndicalisme-et-les-fronts-populaires-en-1936-regards-croises-es-2026-11-03-26';
+UPDATE events SET latitude = 48.859, longitude = 2.347, updated_at = now() WHERE slug = 'ami-manifestation-pour-les-crevettes-2026-11-04-27';
+UPDATE events SET latitude = 48.843283, longitude = 2.383311, updated_at = now() WHERE slug = 'ami-ia-et-production-robotique-pour-le-meilleur-ou-pour-le-pire-un-debat-propose-par-2026-11-04-29';
+UPDATE events SET latitude = 48.847488, longitude = 2.329531, updated_at = now() WHERE slug = 'ami-gouverner-pour-dominer-autrui-par-luc-foisneau-2026-11-04-30';
+UPDATE events SET latitude = 48.877694, longitude = 2.409295, updated_at = now() WHERE slug = 'ami-penser-demain-3-resister-a-l-ia-bsurde-2026-11-05-31';
+UPDATE events SET latitude = 48.859, longitude = 2.347, updated_at = now() WHERE slug = 'ami-discussion-autour-du-livre-au-jour-le-jour-2026-11-06-33';
+UPDATE events SET latitude = 48.856892, longitude = 2.381633, updated_at = now() WHERE slug = 'ami-cine-leon-projection-rencontre-2026-11-06-34';
+UPDATE events SET latitude = 48.859, longitude = 2.347, updated_at = now() WHERE slug = 'ami-conference-debat-sur-le-climat-et-les-energies-2026-11-07-35';
+UPDATE events SET latitude = 48.856892, longitude = 2.381633, updated_at = now() WHERE slug = 'ami-l-inventaire-n-16-rencontre-avec-l-equipe-de-la-redaction-2026-11-07-36';
+UPDATE events SET latitude = 48.876006, longitude = 2.360718, updated_at = now() WHERE slug = 'ami-cours-de-droit-du-travail-sur-le-cdi-2026-11-09-38';
+UPDATE events SET latitude = 48.856892, longitude = 2.381633, updated_at = now() WHERE slug = 'ami-peut-il-encore-y-avoir-une-deliberation-collective-de-qualite-2026-11-10-39';
+UPDATE events SET latitude = 48.847488, longitude = 2.329531, updated_at = now() WHERE slug = 'ami-armer-la-non-violence-rencontre-avec-nathalie-achard-2026-11-10-41';
+UPDATE events SET latitude = 48.863728, longitude = 2.449364, updated_at = now() WHERE slug = 'ami-aprem-antimilitariste-2026-11-11-42';
+UPDATE events SET latitude = 48.862458, longitude = 2.39913, updated_at = now() WHERE slug = 'ami-y-a-pas-de-nous-sans-toit-2026-11-12-43';
+UPDATE events SET latitude = 48.812752, longitude = 2.386427, updated_at = now() WHERE slug = 'ami-discussion-avec-rob-grams-sur-son-livre-bourgeois-gaze-2026-11-12-44';
+UPDATE events SET latitude = 48.886099, longitude = 2.382839, updated_at = now() WHERE slug = 'ami-discussion-noyer-l-urgence-dans-l-urgence-intervenir-pour-que-rien-ne-change-2026-11-13-45';
+UPDATE events SET latitude = 48.863728, longitude = 2.449364, updated_at = now() WHERE slug = 'ami-fete-des-10-ans-de-la-legal-team-paris-idf-2026-11-14-46';
+UPDATE events SET latitude = 48.862458, longitude = 2.39913, updated_at = now() WHERE slug = 'ami-cine-debat-laissez-nous-les-cles-2026-11-17-47';
+UPDATE events SET latitude = 48.826907, longitude = 2.360165, updated_at = now() WHERE slug = 'ami-vernissage-photo-mais-est-ce-que-t-avais-dit-non-violences-sexistes-et-sexuelles-2026-11-17-48';
+UPDATE events SET latitude = 48.859, longitude = 2.347, updated_at = now() WHERE slug = 'ami-etre-femme-en-zone-de-conflit-regards-croises-en-palestine-en-rdc-et-en-ukraine-2026-11-21-51';
+UPDATE events SET latitude = 48.886099, longitude = 2.382839, updated_at = now() WHERE slug = 'ami-demontage-judiciaire-l-affaire-adriano-sofri-2026-11-22-52';
+UPDATE events SET latitude = 48.886099, longitude = 2.382839, updated_at = now() WHERE slug = 'ami-discussion-new-age-religions-2-0-et-arriere-monde-2026-11-27-56';
+UPDATE events SET latitude = 48.863728, longitude = 2.449364, updated_at = now() WHERE slug = 'ami-formation-a-la-regulation-non-violente-des-conflits-2026-11-28-57';
+UPDATE events SET latitude = 48.856892, longitude = 2.381633, updated_at = now() WHERE slug = 'ami-les-ia-risquent-elles-effectivement-de-s-emanciper-de-la-tutelle-humaine-et-de-t-2026-12-08-58';
+UPDATE events SET latitude = 48.859, longitude = 2.347, updated_at = now() WHERE slug = 'ami-cinematec-projection-debat-de-la-resistance-a-la-resilience-2026-12-10-59';
+UPDATE events SET latitude = 48.886099, longitude = 2.382839, updated_at = now() WHERE slug = 'ami-discussion-la-perspective-anti-autoritaire-et-l-enfance-2026-12-11-60';
+
+SELECT count(*) FILTER (WHERE latitude IS NOT NULL) AS with_coords, count(*) AS total FROM events WHERE slug LIKE 'ami-%';

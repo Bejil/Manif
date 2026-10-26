@@ -16,38 +16,153 @@ const category = ref('')
 const statuses = ref<string[]>(['upcoming', 'ongoing'])
 const selectedId = ref<string | null>(null)
 const mobileView = ref<'list' | 'map'>('list')
+const page = ref(1)
+const pageSize = 20
 const debouncedQ = refDebounced(q, 300)
 
-const queryParams = computed(() => ({
+const filterParams = computed(() => ({
   q: debouncedQ.value || undefined,
   category: category.value || undefined,
   statuses: statuses.value.join(',') || undefined,
 }))
 
+const listParams = computed(() => ({
+  ...filterParams.value,
+  page: page.value,
+  pageSize,
+}))
+
+watch(filterParams, () => {
+  page.value = 1
+  selectedId.value = null
+})
+
 const { data, pending, error, refresh } = await useFetch<{
   items: EventPublic[]
   total: number
+  page: number
+  pageSize: number
 }>('/api/events', {
-  query: queryParams,
-  watch: [queryParams],
+  query: listParams,
+  watch: [listParams],
+  transform: (res) => ({
+    ...res,
+    items: (res.items ?? []).map(slimEventForList),
+  }),
 })
 
-const { data: mapData } = await useFetch<{ points: EventMapPoint[] }>('/api/events/map', {
-  query: queryParams,
-  watch: [queryParams],
+/** Carte hors payload SSR : beaucoup de points, chargée côté client. */
+const { data: mapData, pending: mapPending } = await useFetch<{ points: EventMapPoint[] }>('/api/events/map', {
+  query: filterParams,
+  watch: [filterParams],
+  server: false,
+  lazy: true,
+  default: () => ({ points: [] }),
+  transform: (res) => ({
+    points: (res.points ?? []).map(p => ({
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      cityName: p.cityName,
+      latitude: p.latitude,
+      longitude: p.longitude,
+      displayStatus: p.displayStatus,
+      startAt: p.startAt,
+      category: p.category,
+    })),
+  }),
 })
+
+const totalPages = computed(() => {
+  const total = data.value?.total ?? 0
+  return Math.max(1, Math.ceil(total / pageSize))
+})
+
+function slimEventForList(event: EventPublic): EventPublic {
+  return {
+    ...event,
+    description: '',
+    imageUrls: [],
+    videoUrls: [],
+    sourceUrl: null,
+    organizerName: null,
+  }
+}
+
+const pendingScrollId = ref<string | null>(null)
+
+function scrollListToEvent(id: string) {
+  const el = document.getElementById(`event-${id}`)
+  const list = document.getElementById('agenda-list')
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+  else if (list) {
+    list.scrollTop = 0
+    list.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+}
+
+function goToPage(next: number) {
+  const max = totalPages.value
+  page.value = Math.min(max, Math.max(1, next))
+  nextTick(() => {
+    const list = document.getElementById('agenda-list')
+    if (list) {
+      list.scrollTop = 0
+      list.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  })
+}
 
 const openFaq = ref<number | null>(0)
 
-function onSelect(id: string) {
+async function onSelect(id: string) {
   selectedId.value = id
   if (import.meta.client && window.innerWidth < 768) {
     mobileView.value = 'list'
   }
-  nextTick(() => {
-    document.getElementById(`event-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  })
+
+  if (data.value?.items?.some(e => e.id === id)) {
+    await nextTick()
+    scrollListToEvent(id)
+    return
+  }
+
+  // Point carte hors page courante → charger la bonne page puis scroller
+  try {
+    const res = await $fetch<{ page: number }>('/api/events', {
+      query: {
+        ...filterParams.value,
+        pageSize,
+        focusId: id,
+      },
+    })
+    pendingScrollId.value = id
+    if (page.value === res.page) {
+      pendingScrollId.value = null
+      await nextTick()
+      scrollListToEvent(id)
+    }
+    else {
+      page.value = res.page
+    }
+  }
+  catch {
+    // sélection carte seule
+  }
 }
+
+watch(
+  [() => data.value?.items, pending],
+  ([items, isPending]) => {
+    const id = pendingScrollId.value
+    if (!id || isPending) return
+    if (!items?.some(e => e.id === id)) return
+    pendingScrollId.value = null
+    nextTick(() => scrollListToEvent(id))
+  },
+)
 
 const { share } = useShare()
 const shareMsg = ref<string | null>(null)
@@ -185,6 +300,9 @@ const engagementBlocks = [
         </div>
         <p v-if="data" class="chip bg-[#111111] text-[#FFFCF4]">
           {{ data.total }} résultat{{ data.total > 1 ? 's' : '' }}
+          <span v-if="data.total > pageSize" class="opacity-70">
+            · p. {{ page }}/{{ totalPages }}
+          </span>
         </p>
       </div>
 
@@ -215,6 +333,7 @@ const engagementBlocks = [
 
       <div id="carte-section" class="mt-5 grid scroll-mt-24 gap-5 lg:grid-cols-2 lg:gap-6">
         <div
+          id="agenda-list"
           class="-mx-2 max-h-[70vh] space-y-3 overflow-y-auto px-2 pb-3 pt-2"
           :class="mobileView === 'map' ? 'hidden md:block' : ''"
         >
@@ -243,6 +362,32 @@ const engagementBlocks = [
               @select="onSelect(event.id)"
             />
           </div>
+
+          <nav
+            v-if="data && data.total > pageSize"
+            class="flex flex-wrap items-center justify-between gap-3 border-t border-[#DDDAD3] pt-4"
+            aria-label="Pagination de l’agenda"
+          >
+            <UiButton
+              size="sm"
+              variant="outline"
+              :disabled="page <= 1 || pending"
+              @click="goToPage(page - 1)"
+            >
+              Précédent
+            </UiButton>
+            <p class="text-sm font-semibold text-[#454545]">
+              Page {{ page }} sur {{ totalPages }}
+            </p>
+            <UiButton
+              size="sm"
+              variant="outline"
+              :disabled="page >= totalPages || pending"
+              @click="goToPage(page + 1)"
+            >
+              Suivant
+            </UiButton>
+          </nav>
         </div>
 
         <div
@@ -250,11 +395,19 @@ const engagementBlocks = [
           :class="mobileView === 'list' ? 'hidden md:block' : ''"
         >
           <ClientOnly>
-            <EventsMap
-              :points="mapData?.points || []"
-              :selected-id="selectedId"
-              @select="onSelect"
-            />
+            <div class="relative size-full">
+              <EventsMap
+                :points="mapData?.points || []"
+                :selected-id="selectedId"
+                @select="onSelect"
+              />
+              <div
+                v-if="mapPending && !(mapData?.points?.length)"
+                class="absolute inset-0 z-10 flex items-center justify-center bg-[#F4F1EA]/80 text-sm text-[#454545]"
+              >
+                Chargement de la carte…
+              </div>
+            </div>
             <template #fallback>
               <div class="map-shell flex items-center justify-center text-sm text-[#454545]">
                 Chargement de la carte…

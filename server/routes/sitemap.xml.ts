@@ -5,7 +5,8 @@ export default defineEventHandler(async (event) => {
   const base = config.public.siteUrl.replace(/\/$/, '')
   const { items } = await listEvents({
     statuses: ['upcoming', 'ongoing', 'past', 'cancelled', 'postponed'],
-    pageSize: 500,
+    page: 1,
+    pageSize: 2000,
   })
 
   const staticPages = [

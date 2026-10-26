@@ -117,10 +117,10 @@ export default defineNuxtConfig({
     },
   },
 
-  // Remplace le plugin nesting manquant du module Tailwind
+  // TW 3 + ESM : `tailwindcss/nesting` sans index.js échoue — déléguer à postcss-nesting
   postcss: {
     plugins: {
-      'postcss-nesting': {},
+      'tailwindcss/nesting': 'postcss-nesting',
       tailwindcss: {},
       autoprefixer: {},
     },
