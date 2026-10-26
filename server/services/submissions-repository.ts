@@ -620,6 +620,41 @@ function displayValue(v: string | number | null | undefined): string {
   return String(v)
 }
 
+function sameInstant(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (a == null || a === '') return b == null || b === ''
+  if (b == null || b === '') return false
+  const ta = DateTime.fromISO(a, { setZone: true })
+  const tb = DateTime.fromISO(b, { setZone: true })
+  if (ta.isValid && tb.isValid) return ta.toMillis() === tb.toMillis()
+  return a === b
+}
+
+function formatChangeValue(
+  field: string,
+  v: string | number | null | undefined,
+): string {
+  if (v == null || v === '') return '(vide)'
+  if (field === 'startAt' || field === 'endAt') {
+    const dt = DateTime.fromISO(String(v), { setZone: true }).setZone('Europe/Paris')
+    if (dt.isValid) return dt.toFormat('dd/MM/yyyy HH:mm')
+  }
+  return displayValue(v)
+}
+
+function valuesEqual(
+  field: string,
+  before: string | number | null | undefined,
+  after: string | number | null | undefined,
+): boolean {
+  if (field === 'startAt' || field === 'endAt') {
+    return sameInstant(
+      before == null ? null : String(before),
+      after == null ? null : String(after),
+    )
+  }
+  return displayValue(before) === displayValue(after)
+}
+
 function buildSubmissionChanges(
   before: EventSubmissionRecord,
   after: {
@@ -661,12 +696,12 @@ function buildSubmissionChanges(
   ]
 
   return fields
-    .filter(f => displayValue(f.before) !== displayValue(f.after))
+    .filter(f => !valuesEqual(f.field, f.before, f.after))
     .map(f => ({
       field: f.field,
       label: f.label,
-      before: displayValue(f.before) || '(vide)',
-      after: displayValue(f.after) || '(vide)',
+      before: formatChangeValue(f.field, f.before),
+      after: formatChangeValue(f.field, f.after),
     }))
 }
 

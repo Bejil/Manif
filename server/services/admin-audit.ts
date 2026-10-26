@@ -60,8 +60,8 @@ function detailFromMetadata(meta: Record<string, unknown> | null | undefined): s
   const changes = changesFromMetadata(meta)
   if (changes?.length) {
     return changes
-      .map(c => `${c.label} :\n  Avant : ${c.before || '(vide)'}\n  Après : ${c.after || '(vide)'}`)
-      .join('\n\n')
+      .map(c => `${c.label} : ${c.after || '(vide)'}`)
+      .join('\n')
   }
   const message = meta.message
   const reason = meta.reason

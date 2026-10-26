@@ -70,14 +70,7 @@ function truncate(s: string, max = 280) {
             class="rounded-[4px] bg-[#F4F1EA] px-3 py-2 text-sm text-[#454545]"
           >
             <p class="font-bold text-[#111111]">{{ change.label }}</p>
-            <p class="mt-1">
-              <span class="text-xs font-semibold uppercase tracking-wide text-[#636363]">Avant</span>
-              <span class="mt-0.5 block whitespace-pre-wrap">{{ truncate(change.before) }}</span>
-            </p>
-            <p class="mt-2">
-              <span class="text-xs font-semibold uppercase tracking-wide text-[#636363]">Après</span>
-              <span class="mt-0.5 block whitespace-pre-wrap">{{ truncate(change.after) }}</span>
-            </p>
+            <p class="mt-1 whitespace-pre-wrap">{{ truncate(change.after) }}</p>
           </li>
         </ul>
 
