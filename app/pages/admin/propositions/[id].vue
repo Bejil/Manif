@@ -37,6 +37,14 @@ type SubmissionDetail = {
   mapLongitude: number | null
   mapPrecision: 'place' | 'city' | 'none'
   mapLabel?: string
+  history?: Array<{
+    id: string
+    action: string
+    label: string
+    detail: string | null
+    actorId: string
+    createdAt: string
+  }>
 }
 
 const { data: item, error, pending, refresh } = await useFetch<SubmissionDetail>(
@@ -269,10 +277,11 @@ const revealLabel = computed(() => {
             Position carte indisponible pour cette adresse.
           </p>
 
-          <p v-if="item.rejectionReason && item.moderationStatus === 'changes_requested'" class="rounded-[4px] border border-[#805200]/30 bg-[#FFF8E8] p-4 text-sm text-[#805200]">
-            <span class="font-bold">Dernière demande :</span>
-            {{ item.rejectionReason }}
-          </p>
+          <AdminHistoryFeed
+            class="mt-6"
+            title="Historique de modération"
+            :items="item.history || []"
+          />
         </article>
 
         <aside class="lg:sticky lg:top-24">

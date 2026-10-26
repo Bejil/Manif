@@ -12,6 +12,7 @@ import { buildChangesRequestedEmail, buildVerificationEmail, sendEmail } from '.
 import { geocodeCityCenter, geocodeFrenchPlace } from './geocoding'
 import { getMockStore, newId, nowIso, seedMockStore } from './mock-store'
 import { buildDemoEvents } from './seed-data'
+import { listEntityHistory, type AdminHistoryEntry } from './admin-audit'
 import { upsertEvent } from './events-repository'
 
 function ensureSeeded() {
@@ -195,59 +196,56 @@ export async function verifySubmission(token: string, pepper: string) {
 }
 
 export async function listPendingSubmissions() {
-  ensureSeeded()
-  if (useMockDb()) {
-    return getMockStore().submissions
-      .filter(s => s.moderationStatus === 'pending_moderation')
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .map(sanitizeSubmission)
-  }
-  const supabase = getServiceSupabase()
-  const { data, error } = await supabase
-    .from('event_submissions')
-    .select('*')
-    .eq('moderation_status', 'pending_moderation')
-    .order('created_at', { ascending: false })
-  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-  return (data ?? []).map(rowToSubmission).map(sanitizeSubmission)
+  return listAdminSubmissionsByStatus(['pending_moderation'])
 }
 
 export async function listModerationQueue() {
+  return listAdminSubmissionsByStatus([
+    'pending_moderation',
+    'awaiting_verification',
+    'changes_requested',
+  ])
+}
+
+export async function listChangesRequestedSubmissions() {
+  return listAdminSubmissionsByStatus(['changes_requested'])
+}
+
+/** Liste admin : tous les statuts, du plus récent au plus ancien. */
+export async function listAllSubmissionsAdmin() {
   ensureSeeded()
   if (useMockDb()) {
     return getMockStore().submissions
-      .filter(s =>
-        s.moderationStatus === 'pending_moderation'
-        || s.moderationStatus === 'awaiting_verification'
-        || s.moderationStatus === 'changes_requested',
-      )
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice()
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map(sanitizeSubmission)
   }
   const supabase = getServiceSupabase()
   const { data, error } = await supabase
     .from('event_submissions')
     .select('*')
-    .in('moderation_status', ['pending_moderation', 'awaiting_verification', 'changes_requested'])
-    .order('created_at', { ascending: false })
+    .order('updated_at', { ascending: false })
+    .limit(500)
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
   return (data ?? []).map(rowToSubmission).map(sanitizeSubmission)
 }
 
-export async function listChangesRequestedSubmissions() {
+async function listAdminSubmissionsByStatus(
+  statuses: EventSubmissionRecord['moderationStatus'][],
+) {
   ensureSeeded()
   if (useMockDb()) {
     return getMockStore().submissions
-      .filter(s => s.moderationStatus === 'changes_requested')
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .filter(s => statuses.includes(s.moderationStatus))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map(sanitizeSubmission)
   }
   const supabase = getServiceSupabase()
   const { data, error } = await supabase
     .from('event_submissions')
     .select('*')
-    .eq('moderation_status', 'changes_requested')
-    .order('created_at', { ascending: false })
+    .in('moderation_status', statuses)
+    .order('updated_at', { ascending: false })
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
   return (data ?? []).map(rowToSubmission).map(sanitizeSubmission)
 }
@@ -267,10 +265,14 @@ export async function getSubmission(id: string, opts?: { includeEmail?: boolean 
   return raw ? sanitizeSubmission(raw, opts) : null
 }
 
-/** Détail admin : e-mail + coords carte (lieu ou centre-ville). */
-export async function getSubmissionForAdmin(id: string): Promise<SanitizedSubmission | null> {
+/** Détail admin : e-mail + coords carte + historique modération. */
+export async function getSubmissionForAdmin(id: string): Promise<
+  (SanitizedSubmission & { history: AdminHistoryEntry[] }) | null
+> {
   const base = await getSubmission(id, { includeEmail: true })
   if (!base) return null
+
+  const history = await listEntityHistory('event_submission', id)
 
   const place = await geocodeFrenchPlace({
     cityName: base.cityName,
@@ -283,6 +285,7 @@ export async function getSubmissionForAdmin(id: string): Promise<SanitizedSubmis
       mapLongitude: place.longitude,
       mapPrecision: 'place',
       mapLabel: place.label,
+      history,
     }
   }
   const city = await geocodeCityCenter({ cityName: base.cityName })
@@ -293,6 +296,7 @@ export async function getSubmissionForAdmin(id: string): Promise<SanitizedSubmis
       mapLongitude: city.longitude,
       mapPrecision: 'city',
       mapLabel: city.label,
+      history,
     }
   }
   return {
@@ -301,6 +305,7 @@ export async function getSubmissionForAdmin(id: string): Promise<SanitizedSubmis
     mapLongitude: null,
     mapPrecision: 'none',
     mapLabel: undefined,
+    history,
   }
 }
 

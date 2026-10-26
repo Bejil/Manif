@@ -1,9 +1,7 @@
 import { requireAdmin } from '../../../utils/admin-auth'
 import {
   getSubmissionForAdmin,
-  listChangesRequestedSubmissions,
-  listModerationQueue,
-  listPendingSubmissions,
+  listAllSubmissionsAdmin,
 } from '../../../services/submissions-repository'
 
 export default defineEventHandler(async (event) => {
@@ -12,10 +10,6 @@ export default defineEventHandler(async (event) => {
   if (query.id && typeof query.id === 'string') {
     return { item: await getSubmissionForAdmin(query.id) }
   }
-  return {
-    items: await listModerationQueue(),
-    pending: await listPendingSubmissions(),
-    changesRequested: await listChangesRequestedSubmissions(),
-  }
+  const items = await listAllSubmissionsAdmin()
+  return { items }
 })
-

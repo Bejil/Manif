@@ -18,7 +18,18 @@ const { data: me } = await useFetch('/api/admin/me', {
 })
 if (!me.value?.authenticated) await navigateTo('/admin')
 
-const { data: event, error, refresh, pending } = await useFetch<EventPublic>(
+type EventAdminDetail = EventPublic & {
+  history?: Array<{
+    id: string
+    action: string
+    label: string
+    detail: string | null
+    actorId: string
+    createdAt: string
+  }>
+}
+
+const { data: event, error, refresh, pending } = await useFetch<EventAdminDetail>(
   () => `/api/admin/events/${id.value}`,
   { headers: cookieHeaders, credentials: 'include' },
 )
@@ -530,7 +541,11 @@ async function mergeIntoTarget() {
           </div>
         </form>
 
-        <aside class="lg:sticky lg:top-24">
+        <aside class="space-y-4 lg:sticky lg:top-24">
+          <AdminHistoryFeed
+            title="Historique"
+            :items="event.history || []"
+          />
           <div class="rounded-[8px] border border-[#DDDAD3] bg-white p-4">
             <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">Actions</p>
 
