@@ -5,8 +5,8 @@ import { getEventById, patchEvent } from '../../../../services/events-repository
 import { nowIso } from '../../../../services/mock-store'
 
 /**
- * Publie tous les événements créés/liés par ce run encore en brouillon.
- * Corrige le cas « import en mode draft → invisible sur le site public ».
+ * Publie les nouveaux événements de ce run encore en brouillon.
+ * Les maj d’existants sont déjà écrites en base et n’apparaissent pas ici.
  */
 export default defineEventHandler(async (event) => {
   requireAdmin(event)
@@ -15,8 +15,8 @@ export default defineEventHandler(async (event) => {
   const run = await getImportRun(id)
   if (!run) throw notFound('Import introuvable')
 
-  const { items, total } = await listCandidates(id, { status: 'applied', limit: 2000, offset: 0 })
-  if (!total) throw badRequest('Aucun candidat appliqué sur ce run')
+  const { items, total } = await listCandidates(id, { onlyNew: true, limit: 2000, offset: 0 })
+  if (!total) throw badRequest('Aucun nouvel événement à publier sur ce run')
 
   let published = 0
   let skipped = 0

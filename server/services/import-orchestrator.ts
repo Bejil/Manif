@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { ImportModeId, ImportSourceId } from '#shared/constants/import-sources'
 import type { EventRecord } from '#shared/types/event'
-import type { ImportCandidateRecord, ImportRunRecord, ImportRunStats } from '#shared/types/import'
+import type {
+  ImportCandidateRecord,
+  ImportRunProgress,
+  ImportRunRecord,
+  ImportRunStats,
+} from '#shared/types/import'
 import { createEventSlug, ensureUniqueSlug } from '#shared/utils/slug'
 import { timezoneFromPostalOrCity } from '../utils/timezone'
 import { geocodeFrenchPlace } from './geocoding'
@@ -9,6 +14,7 @@ import { buildImportWorkUnits } from './importers'
 import {
   countCandidatesByStatuses,
   createImportRun,
+  findEventIdBySourceUrl,
   findImportMatch,
   getImportRun,
   getPendingCandidates,
@@ -52,9 +58,33 @@ export async function startImportRun(input: {
       totalUnits: units.length,
       unitsDone: [],
       message: 'Démarrage…',
+      phase: 'scrape',
+      percent: 0,
     },
   })
   return (await getImportRun(run.id))!
+}
+
+/** Poids des phases pour une barre de progression continue. */
+const PHASE_SCRAPE = 55
+const PHASE_PREPARE = 25
+const PHASE_APPLY = 20
+
+function scrapePercent(cursor: number, totalUnits: number): number {
+  if (totalUnits <= 0) return PHASE_SCRAPE
+  return Math.min(PHASE_SCRAPE, Math.round(PHASE_SCRAPE * Math.max(0, cursor) / totalUnits))
+}
+
+function preparePercent(scraped: number, pendingLeft: number): number {
+  if (scraped <= 0) return PHASE_SCRAPE
+  const done = Math.min(scraped, Math.max(0, scraped - pendingLeft))
+  return PHASE_SCRAPE + Math.round(PHASE_PREPARE * done / scraped)
+}
+
+function applyPercent(toApply: number, applied: number): number {
+  const base = PHASE_SCRAPE + PHASE_PREPARE
+  if (toApply <= 0) return base + PHASE_APPLY
+  return base + Math.min(PHASE_APPLY, Math.round(PHASE_APPLY * Math.min(applied, toApply) / toApply))
 }
 
 /** Traite une unité de scrape (ou passe à la préparation / apply). */
@@ -117,12 +147,15 @@ export async function continueImportRun(runId: string): Promise<{
             [unit.source]: (run.stats.bySource[unit.source] || 0) + added,
           },
         }
-        const progress = {
-          cursor: cursor + 1,
+        const nextCursor = cursor + 1
+        const progress: ImportRunProgress = {
+          cursor: nextCursor,
           totalUnits: units.length,
           currentUnit: unit.label,
           unitsDone: [...run.progress.unitsDone, unit.id],
           message: `${unit.label} : +${added} candidats`,
+          phase: 'scrape',
+          percent: scrapePercent(nextCursor, units.length),
         }
         const next = await updateImportRun(runId, {
           status: 'running',
@@ -134,12 +167,15 @@ export async function continueImportRun(runId: string): Promise<{
       }
       catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
-        const progress = {
-          cursor: cursor + 1,
+        const nextCursor = cursor + 1
+        const progress: ImportRunProgress = {
+          cursor: nextCursor,
           totalUnits: units.length,
           currentUnit: unit.label,
           unitsDone: [...run.progress.unitsDone, unit.id],
           message: `Erreur ${unit.label}: ${msg}`,
+          phase: 'scrape',
+          percent: scrapePercent(nextCursor, units.length),
         }
         const stats = {
           ...run.stats,
@@ -159,6 +195,8 @@ export async function continueImportRun(runId: string): Promise<{
         cursor: units.length,
         totalUnits: units.length,
         message: 'Scrape terminé — préparation des candidats…',
+        phase: 'prepare',
+        percent: PHASE_SCRAPE,
       },
     })
     return continueImportRun(runId)
@@ -173,7 +211,12 @@ export async function continueImportRun(runId: string): Promise<{
 
     await updateImportRun(runId, {
       status: 'applying',
-      progress: { ...run.progress, message: 'Application des candidats…' },
+      progress: {
+        ...run.progress,
+        message: 'Application des candidats…',
+        phase: 'apply',
+        percent: PHASE_SCRAPE + PHASE_PREPARE,
+      },
     })
     return continueImportRun(runId)
   }
@@ -184,12 +227,28 @@ export async function continueImportRun(runId: string): Promise<{
       const fresh = (await getImportRun(runId))!
       return { run: fresh, done: false, step: 'apply' }
     }
+    // Garde-fou : ne jamais clôturer s’il reste des candidats à écrire
+    const stillPending = await countCandidatesByStatuses(runId, ['ready', 'duplicate'])
+    if (stillPending > 0) {
+      const fresh = await updateImportRun(runId, {
+        status: 'applying',
+        finishedAt: null,
+        progress: {
+          ...run.progress,
+          message: `Écriture… ${stillPending} candidat(s) restant(s)`,
+          phase: 'apply',
+        },
+      })
+      return { run: fresh, done: false, step: 'apply-retry' }
+    }
     const next = await updateImportRun(runId, {
       status: 'completed',
       finishedAt: nowIso(),
       progress: {
         ...run.progress,
         message: 'Import terminé',
+        phase: 'done',
+        percent: 100,
       },
     })
     return { run: next, done: true, step: 'completed' }
@@ -276,11 +335,15 @@ async function prepareCandidatesBatch(runId: string, doGeocode: boolean) {
     }
   }
 
+  const pendingLeft = await countCandidatesByStatuses(runId, ['pending'])
+  const scrapedTotal = run.stats.scraped || 0
   await updateImportRun(runId, {
     stats: { ...run.stats, ready, duplicates, errors },
     progress: {
       ...run.progress,
       message: `Préparation… prêts=${ready} doublons=${duplicates}`,
+      phase: 'prepare',
+      percent: preparePercent(scrapedTotal, pendingLeft),
     },
   })
 
@@ -290,7 +353,16 @@ async function prepareCandidatesBatch(runId: string, doGeocode: boolean) {
 async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
   const run = (await getImportRun(runId))!
   const { items } = await listCandidatesForApply(runId, 20)
-  if (!items.length) return { exhausted: true }
+  if (!items.length) {
+    const still = await countCandidatesByStatuses(runId, ['ready', 'duplicate'])
+    if (still > 0) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Écriture bloquée : ${still} candidat(s) prêts introuvables à l’application`,
+      })
+    }
+    return { exhausted: true }
+  }
 
   let created = run.stats.created || 0
   let updated = run.stats.updated || 0
@@ -311,19 +383,17 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
         endAt = new Date(new Date(startAt).getTime() + 3 * 3600 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
       }
 
-      // Re-check au moment d’écrire (événements créés plus tôt dans le même run)
+      // Re-check au moment d’écrire :
+      // - ready : uniquement l’URL (le match titre a déjà été fait en préparation ;
+      //   un re-match titre fusionnerait à tort les créations du même run)
+      // - duplicate : conserver le match préparé, compléter par URL si besoin
       let matchEventId = c.status === 'duplicate' ? c.matchEventId : null
       let matchReason: ImportMatchReason | null = (c.payload?.matchReason as ImportMatchReason | undefined) || null
-      if (!matchEventId || c.status === 'ready') {
-        const live = await findImportMatch({
-          sourceUrl: c.sourceUrl,
-          title: c.title,
-          cityName: c.cityName,
-          startAt: c.startAt,
-        })
-        if (live) {
-          matchEventId = live.eventId
-          matchReason = live.reason
+      if (c.status === 'ready' || !matchEventId) {
+        const byUrl = await findEventIdBySourceUrl(c.sourceUrl)
+        if (byUrl) {
+          matchEventId = byUrl
+          matchReason = 'source_url'
         }
       }
 
@@ -359,7 +429,13 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
             : existing.publishedAt,
         }
         await upsertEvent(patched)
-        await updateCandidate(c.id, { status: 'applied', appliedEventId: existing.id })
+        // matchEventId renseigné → candidat « maj » (exclu de la liste admin « nouveaux »)
+        await updateCandidate(c.id, {
+          status: 'applied',
+          matchEventId: existing.id,
+          appliedEventId: existing.id,
+          payload: { ...c.payload, applyKind: 'updated', matchReason: reason },
+        })
         updated++
         continue
       }
@@ -406,7 +482,11 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
         isDemo: false,
       }
       const saved = await upsertEvent(record)
-      await updateCandidate(c.id, { status: 'applied', appliedEventId: saved.id })
+      await updateCandidate(c.id, {
+        status: 'applied',
+        appliedEventId: saved.id,
+        payload: { ...c.payload, applyKind: 'created' },
+      })
       created++
     }
     catch (e) {
@@ -418,11 +498,15 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
     }
   }
 
+  const toApply = Math.max((run.stats.ready || 0) + (run.stats.duplicates || 0), 1)
+  const appliedCount = created + updated + skipped
   await updateImportRun(runId, {
     stats: { ...run.stats, created, updated, skipped, errors },
     progress: {
       ...run.progress,
       message: `Application… créés=${created} maj=${updated}`,
+      phase: 'apply',
+      percent: applyPercent(toApply, appliedCount),
     },
   })
 

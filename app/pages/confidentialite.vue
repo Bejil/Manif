@@ -72,6 +72,17 @@ const config = useRuntimeConfig()
     <h2>Signalements</h2>
     <p>Motif et description, non publiés automatiquement. Finalité : qualité éditoriale.</p>
 
+    <h2>Contributions financières (Ko-fi)</h2>
+    <p>
+      Lorsque la contribution est activée, Manif' charge un script officiel Ko-fi
+      (bouton flottant) et propose des liens vers
+      <NuxtLink to="/soutenir">Soutenir Manif'</NuxtLink>.
+      Le paiement est traité exclusivement par <strong>Ko-fi</strong> et ses prestataires.
+      Manif' ne collecte aucune donnée bancaire, aucun e-mail de contributeur, n’enregistre
+      aucune contribution et n’associe aucun paiement à un soutien citoyen ou à une
+      participation déclarée. Ces deux types d’actions restent indépendants.
+    </p>
+
     <h2>Sous-traitants</h2>
     <ul>
       <li>Supabase (hébergement PostgreSQL / Auth)</li>
@@ -79,6 +90,7 @@ const config = useRuntimeConfig()
       <li>Resend (e-mails, si configuré)</li>
       <li>Cloudflare Turnstile (antibot)</li>
       <li>Fournisseur de tuiles cartographiques (OpenFreeMap / OSM par défaut)</li>
+      <li>Ko-fi (contributions volontaires optionnelles — hors traitement Manif')</li>
     </ul>
 
     <h2>Vos droits</h2>

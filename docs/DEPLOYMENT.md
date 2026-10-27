@@ -6,7 +6,7 @@
 - Compte Supabase (production)
 - Domaine + HTTPS
 - Cloudflare Turnstile (antibot)
-- (Optionnel) Resend, URL de dons
+- (Optionnel) Resend, URL Ko-fi (`NUXT_PUBLIC_KOFI_URL` — voir `docs/KOFI.md`)
 
 ## Configuration Supabase
 

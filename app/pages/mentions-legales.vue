@@ -53,6 +53,15 @@ const hostPhone = computed(() => (config.public.legalHostPhone as string) || '')
       et n'endosse pas les revendications affichées.
     </p>
 
+    <h2>Contributions volontaires</h2>
+    <p>
+      Les contributions financières éventuelles passent par une plateforme externe (Ko-fi).
+      Elles sont destinées au porteur indépendant du projet (personne physique), et non à une
+      association d’intérêt général. Elles n’ouvrent pas droit à un avantage fiscal présenté
+      par Manif'. Voir
+      <NuxtLink to="/soutenir">Soutenir Manif'</NuxtLink>.
+    </p>
+
     <h2>Propriété intellectuelle</h2>
     <p>
       Les éléments graphiques et le code de Manif' sont protégés. Les contenus d'événements

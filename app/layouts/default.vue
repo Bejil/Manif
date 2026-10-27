@@ -5,5 +5,8 @@
       <slot />
     </main>
     <AppFooter />
+    <ClientOnly>
+      <KofiOverlayWidget />
+    </ClientOnly>
   </div>
 </template>

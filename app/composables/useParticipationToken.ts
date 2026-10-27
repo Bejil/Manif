@@ -58,6 +58,9 @@ export function useParticipationToken(eventId: string) {
     if (!import.meta.client) return
     localStorage.setItem(`${storageKey}:state`, JSON.stringify(state))
     rememberEngagement(eventId, state)
+    window.dispatchEvent(new CustomEvent('manif:engagement-changed', {
+      detail: { eventId, state },
+    }))
   }
 
   return { getOrCreateToken, getLocalState, setLocalState }

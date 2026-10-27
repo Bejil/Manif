@@ -1,11 +1,21 @@
 <script setup lang="ts">
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   title: string
   cityName: string
   url: string
-}>()
+  /** Classes additionnelles sur le bouton déclencheur (ex. hero sombre) */
+  buttonClass?: string
+  /** Masque le bouton déclencheur (contrôle externe) */
+  hideTrigger?: boolean
+}>(), {
+  hideTrigger: false,
+})
 
 const open = ref(false)
+
+defineExpose({
+  openMenu: () => { open.value = true },
+})
 const feedback = ref<string | null>(null)
 const canNativeShare = ref(false)
 const { share, copyLink, openSocial, shareInstagram, supportsNativeShare } = useShare()
@@ -63,12 +73,18 @@ async function onInstagram() {
 
 <template>
   <div>
-    <UiButton variant="outline" type="button" @click="open = true">
+    <UiButton
+      v-if="!hideTrigger"
+      variant="outline"
+      type="button"
+      :class="buttonClass"
+      @click="open = true"
+    >
       <BrandIcon name="share" :size="16" />
       Partager
     </UiButton>
 
-    <p v-if="feedback && !open" class="mt-3 text-sm font-semibold text-[#4D257D]" role="status">
+    <p v-if="feedback && !open && !hideTrigger" class="mt-3 text-sm font-semibold text-[#4D257D]" role="status">
       {{ feedback }}
     </p>
 

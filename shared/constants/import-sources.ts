@@ -53,12 +53,10 @@ export const IMPORT_MODES = [
   {
     id: 'draft',
     label: 'Brouillons',
-    description: 'Écrit dans events mais invisible sur le site public (à publier ensuite)',
   },
   {
     id: 'published',
     label: 'Publiés',
-    description: 'Visibles immédiatement sur l’agenda public',
   },
 ] as const
 

@@ -46,6 +46,9 @@ export interface ImportRunProgress {
   currentUnit?: string
   unitsDone: string[]
   message?: string
+  /** Progression globale 0–100 (scrape → préparation → application) */
+  percent?: number
+  phase?: 'scrape' | 'prepare' | 'apply' | 'done'
 }
 
 export interface ImportRunStats {

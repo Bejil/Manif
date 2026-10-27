@@ -83,11 +83,6 @@ watch(open, (v) => {
       <slot />
     </main>
 
-    <footer class="border-t border-[#DDDAD3] bg-[#F4F1EA]">
-      <div class="container-page flex flex-wrap items-center justify-between gap-3 py-5 text-xs font-semibold text-[#454545]">
-        <p>Manif' — espace d’administration</p>
-        <NuxtLink to="/" class="text-[#6735B6] hover:underline">Retour au site</NuxtLink>
-      </div>
-    </footer>
+    <AppFooter />
   </div>
 </template>

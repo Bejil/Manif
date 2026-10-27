@@ -97,7 +97,18 @@ export default defineNuxtConfig({
       mapAttribution:
         process.env.NUXT_PUBLIC_MAP_ATTRIBUTION
         || '© OpenStreetMap © OpenFreeMap',
-      donateUrl: process.env.NUXT_PUBLIC_DONATE_URL || '',
+      /**
+       * Ko-fi : widget flottant + liens /soutenir.
+       * NUXT_PUBLIC_KOFI_USERNAME=manif (prioritaire)
+       * ou NUXT_PUBLIC_KOFI_URL=https://ko-fi.com/manif
+       */
+      kofiUsername: process.env.NUXT_PUBLIC_KOFI_USERNAME || '',
+      kofiUrl:
+        process.env.NUXT_PUBLIC_KOFI_URL
+        || process.env.NUXT_PUBLIC_DONATE_URL
+        || '',
+      /** Montants suggérés sur /soutenir (ex. 1,5,10) */
+      kofiAmounts: process.env.NUXT_PUBLIC_KOFI_AMOUNTS || '1,5,10',
       /**
        * Collecte soutien/participation (MVP actif).
        * Opt-out uniquement : NUXT_PUBLIC_ENGAGEMENTS_ENABLED=false

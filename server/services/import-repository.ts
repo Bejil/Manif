@@ -289,7 +289,13 @@ export async function insertCandidates(
 
 export async function listCandidates(
   runId: string,
-  opts: { status?: ImportCandidateStatus, limit?: number, offset?: number } = {},
+  opts: {
+    status?: ImportCandidateStatus
+    /** Uniquement les créations (pas les maj auto d’existants) */
+    onlyNew?: boolean
+    limit?: number
+    offset?: number
+  } = {},
 ): Promise<{ items: ImportCandidateRecord[], total: number }> {
   const limit = opts.limit ?? 50
   const offset = opts.offset ?? 0
@@ -297,6 +303,13 @@ export async function listCandidates(
   if (useMockDb()) {
     let items = ensureMockImports().importCandidates.filter(c => c.runId === runId)
     if (opts.status) items = items.filter(c => c.status === opts.status)
+    if (opts.onlyNew) {
+      items = items.filter(c =>
+        c.status === 'applied'
+        && !c.matchEventId
+        && c.payload?.applyKind !== 'updated',
+      )
+    }
     const total = items.length
     return { items: items.slice(offset, offset + limit), total }
   }
@@ -308,6 +321,10 @@ export async function listCandidates(
     .order('start_at', { ascending: true, nullsFirst: false })
     .range(offset, offset + limit - 1)
   if (opts.status) q = q.eq('status', opts.status)
+  if (opts.onlyNew) {
+    // Créations : applied sans match (les maj portent match_event_id)
+    q = q.eq('status', 'applied').is('match_event_id', null)
+  }
   const { data, error, count } = await q
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
   return { items: (data ?? []).map(rowToCandidate), total: count ?? 0 }

@@ -44,9 +44,9 @@ export const SEO = {
       "Comment utiliser Manif' : trouver une manifestation en France, proposer un événement, comptage citoyen, confidentialité, neutralité et signalement. Réponses claires.",
   },
   soutenir: {
-    title: "Soutenir Manif' — Financer un outil citoyen gratuit",
+    title: "Soutenir Manif' — Contribuer à un projet citoyen indépendant",
     description:
-      "Manif' reste gratuit pour tous. Un don volontaire aide à faire vivre le service, sans contrepartie ni favoritisme.",
+      "Découvrez comment contribuer au développement et au fonctionnement de Manif', une plateforme indépendante pour découvrir et partager les manifestations en France.",
   },
   contact: {
     title: "Contact et signalement — Manif'",

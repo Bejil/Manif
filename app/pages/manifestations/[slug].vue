@@ -45,12 +45,17 @@ useHead({
 })
 
 const reportOpen = ref(false)
-const reportReason = ref('wrong_date')
+const reportReason = ref('')
 const reportDetails = ref('')
 const reportOk = ref(false)
 const reportError = ref<string | null>(null)
 const reportTurnstile = ref('')
 const reportTurnstileRef = ref<{ reset: () => void } | null>(null)
+
+const reportReasonOptions = [
+  { value: '', label: 'Choisir un motif' },
+  ...REPORT_REASONS.map(r => ({ value: r.id, label: r.label })),
+]
 
 const mapPoint = computed(() => {
   const e = event.value
@@ -68,6 +73,10 @@ const mapPoint = computed(() => {
 
 async function submitReport() {
   reportError.value = null
+  if (!reportReason.value) {
+    reportError.value = 'Choisissez un motif'
+    return
+  }
   try {
     await $fetch(`/api/events/${event.value!.id}/reports`, {
       method: 'POST',
@@ -79,6 +88,8 @@ async function submitReport() {
     })
     reportOk.value = true
     reportOpen.value = false
+    reportReason.value = ''
+    reportDetails.value = ''
   }
   catch (e: unknown) {
     const err = e as { data?: { statusMessage?: string } }
@@ -144,9 +155,20 @@ async function submitReport() {
       >
         Lieu indiqué — position sur la carte à venir.
       </p>
+
+      <EventActionsBar
+        class="mt-8"
+        dark
+        :event-id="event.id"
+        :title="event.title"
+        :city-name="event.cityName"
+        :share-url="eventShareUrl"
+        :show-calendar="Boolean(event.startAt)"
+        @report="reportOpen = true"
+      />
     </PageHero>
 
-    <div class="container-page grid gap-8 py-8 lg:grid-cols-[1fr_22rem] lg:gap-10">
+    <div class="container-page grid gap-8 py-8 pb-28 lg:grid-cols-[1fr_22rem] lg:gap-10 lg:pb-8">
       <article>
         <div class="surface-card grid gap-4 p-5 sm:grid-cols-2">
           <div>
@@ -206,29 +228,31 @@ async function submitReport() {
           </p>
         </div>
 
-        <div class="mt-8 flex flex-wrap items-start gap-2">
-          <EventShareMenu
-            :title="event.title"
-            :city-name="event.cityName"
-            :url="eventShareUrl"
-          />
-          <a v-if="event.startAt" :href="`/api/events/${event.id}/calendar`">
-            <UiButton variant="outline" type="button">
-              <BrandIcon name="calendar" :size="16" />
-              Calendrier
-            </UiButton>
-          </a>
-          <UiButton variant="outline" @click="reportOpen = true">
-            Signaler
-          </UiButton>
-        </div>
+        <EventActionsBar
+          class="mt-8"
+          :event-id="event.id"
+          :title="event.title"
+          :city-name="event.cityName"
+          :share-url="eventShareUrl"
+          :show-calendar="Boolean(event.startAt)"
+          @report="reportOpen = true"
+        />
         <p v-if="reportOk" class="mt-3 text-sm font-semibold text-[#206C4D]" role="status">Signalement envoyé. Merci.</p>
       </article>
 
-      <aside class="space-y-4 lg:sticky lg:top-24 lg:self-start">
+      <aside
+        id="event-engagement-panel"
+        class="scroll-mt-24 space-y-4 lg:sticky lg:top-24 lg:self-start"
+      >
         <ParticipationPanel :event="event" />
       </aside>
     </div>
+
+    <!-- Barre sticky mobile : visible jusqu’au bloc soutien/participation -->
+    <EventMobileStickyBar
+      :event="event"
+      :share-url="eventShareUrl"
+    />
 
     <UiModal :open="reportOpen" title="Signaler une erreur" @close="reportOpen = false">
       <form class="space-y-4" @submit.prevent="submitReport">
@@ -236,7 +260,8 @@ async function submitReport() {
           id="report-reason"
           v-model="reportReason"
           label="Motif"
-          :options="REPORT_REASONS.map(r => ({ value: r.id, label: r.label }))"
+          required
+          :options="reportReasonOptions"
         />
         <UiTextarea
           id="report-details"

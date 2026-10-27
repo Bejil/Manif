@@ -216,3 +216,68 @@
     transform: translateY(0);
   }
 }
+
+/* Ko-fi : wrap max-width 180px + iframe trop étroit → pill coupé */
+.floatingchat-container-wrap,
+.floatingchat-container-wrap-mobi {
+  width: 280px !important;
+  max-width: none !important;
+  overflow: visible !important;
+}
+.floatingchat-container,
+.floatingchat-container-mobi {
+  width: 280px !important;
+  min-width: 280px !important;
+}
+
+/* Bouton Ko-fi inline : même look que le sticky overlay */
+.kofi-donate-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 100px;
+  color: #fff;
+  cursor: pointer;
+  font-family: 'DM Sans', Helvetica, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  transition: opacity 0.15s ease;
+}
+.kofi-donate-button:hover {
+  opacity: 0.92;
+}
+.kofi-donate-button:focus-visible {
+  outline: 2px solid #9c6ee8;
+  outline-offset: 3px;
+}
+.kofi-donate-button .kofitext {
+  color: #fff;
+}
+.kofi-donate-button .kofiimg {
+  width: 39px;
+  height: auto;
+  display: block;
+  flex-shrink: 0;
+  animation: kofi-wiggle 3s infinite;
+}
+@keyframes kofi-wiggle {
+  0% { transform: rotate(0) scale(1); }
+  60% { transform: rotate(0) scale(1); }
+  75% { transform: rotate(0) scale(1.12); }
+  80% { transform: rotate(0) scale(1.1); }
+  84% { transform: rotate(-10deg) scale(1.1); }
+  88% { transform: rotate(10deg) scale(1.1); }
+  92% { transform: rotate(-10deg) scale(1.1); }
+  96% { transform: rotate(10deg) scale(1.1); }
+  100% { transform: rotate(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kofi-donate-button .kofiimg {
+    animation: none;
+  }
+}
