@@ -4,6 +4,7 @@ import type { DisplayEventStatus } from '#shared/constants/statuses'
 import { computeDisplayStatus, resolveEndAt } from '#shared/utils/event-time'
 import { publicLocationView } from '#shared/utils/location'
 import { matchesSearch, normalizeSearchText, titleSimilarity } from '#shared/utils/search'
+import { excerptText } from '#shared/utils/text'
 import { eventToRow, rowToEvent } from '../utils/mappers'
 import { getServiceSupabase, useMockDb } from '../utils/supabase'
 import { getMockStore, newId, nowIso, seedMockStore } from './mock-store'
@@ -102,6 +103,14 @@ const LIST_COLUMNS = [
   'created_at', 'updated_at', 'published_at', 'is_demo',
 ].join(', ')
 
+function mapListRows(data: unknown[] | null): EventRecord[] {
+  return (data ?? []).map(row => rowToEvent({
+    ...(row as Record<string, unknown>),
+    image_urls: [],
+    video_urls: [],
+  }))
+}
+
 async function fetchPublishedForList(): Promise<EventRecord[]> {
   if (useMockDb()) {
     ensureSeeded()
@@ -120,18 +129,35 @@ async function fetchPublishedForList(): Promise<EventRecord[]> {
     .order('start_at', { ascending: true, nullsFirst: true })
     .limit(3000)
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-  return (data ?? []).map(row => rowToEvent({
-    ...row,
-    image_urls: [],
-    video_urls: [],
-  }))
+  return mapListRows(data)
 }
 
-/** Réduit le JSON hydrate (la carte EventCard n’affiche pas ces champs). */
+/** Engagements locaux : hors fenêtre 7 jours (événements passés inclus). */
+async function fetchPublishedByIds(ids: string[]): Promise<EventRecord[]> {
+  const unique = [...new Set(ids.map(id => id.toLowerCase()).filter(Boolean))].slice(0, 100)
+  if (!unique.length) return []
+  if (useMockDb()) {
+    ensureSeeded()
+    const wanted = new Set(unique)
+    return getMockStore().events.filter(
+      e => e.publicationStatus === 'published' && wanted.has(e.id.toLowerCase()),
+    )
+  }
+  const supabase = getServiceSupabase()
+  const { data, error } = await supabase
+    .from('events')
+    .select(LIST_COLUMNS)
+    .eq('publication_status', 'published')
+    .in('id', unique)
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  return mapListRows(data)
+}
+
+/** Réduit le JSON hydrate — garde un aperçu de description pour les cartes. */
 function slimListItem(event: EventPublic): EventPublic {
   return {
     ...event,
-    description: '',
+    description: excerptText(event.description, 160),
     imageUrls: [],
     videoUrls: [],
     sourceUrl: null,
@@ -166,8 +192,8 @@ function filterPublic(list: EventPublic[], query: EventListQuery): EventPublic[]
     result = result.filter(e => e.startAt != null && DateTime.fromISO(e.startAt) <= to)
   }
   if (query.ids?.length) {
-    const wanted = new Set(query.ids)
-    result = result.filter(e => wanted.has(e.id))
+    const wanted = new Set(query.ids.map(id => id.toLowerCase()))
+    result = result.filter(e => wanted.has(e.id.toLowerCase()))
   }
   return result.sort(sortEvents)
 }
@@ -176,7 +202,9 @@ export async function listEvents(query: EventListQuery) {
   const pageSize = query.pageSize ?? 20
   let page = query.page ?? 1
 
-  const published = await fetchPublishedForList()
+  const published = query.ids?.length
+    ? await fetchPublishedByIds(query.ids)
+    : await fetchPublishedForList()
   // Filtrage sans compteurs (évite N requêtes avant la pagination)
   const provisional = published.map(e => toPublic(e, { supports: 0, participations: 0 }))
   const all = filterPublic(provisional, query)

@@ -128,9 +128,18 @@ watch(totalPages, (max) => {
   if (page.value > max) page.value = max
 })
 
+function eventById(id: string) {
+  return sortedItems.value.find(row => row.event.id === id)?.event ?? null
+}
+
 function onSelect(id: string) {
   selectedId.value = id
-  previewId.value = id
+  if (viewMode.value === 'calendar') {
+    previewId.value = id
+    return
+  }
+  const event = eventById(id)
+  if (event) void navigateTo(`/manifestations/${event.slug}`)
 }
 
 function closePreview() {

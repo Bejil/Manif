@@ -2,6 +2,7 @@
 import type { EventPublic } from '#shared/types/event'
 import type { DisplayEventStatus } from '#shared/constants/statuses'
 import { DATE_PENDING_LABEL } from '#shared/utils/event-time'
+import { excerptText } from '#shared/utils/text'
 
 const props = withDefaults(defineProps<{
   event: EventPublic
@@ -55,6 +56,8 @@ const dateLabel = computed(() => {
   if (!props.event.startAt) return DATE_PENDING_LABEL
   return formatDate(props.event.startAt, props.event.timezone)
 })
+
+const descriptionPreview = computed(() => excerptText(props.event.description || '', 140))
 </script>
 
 <template>
@@ -153,6 +156,14 @@ const dateLabel = computed(() => {
             · lieu précis à venir
           </span>
         </span>
+      </p>
+
+      <p
+        v-if="descriptionPreview"
+        class="mt-2 line-clamp-2 text-sm leading-relaxed"
+        :class="selected ? 'text-[#FFFCF4]/65' : 'text-[#636363]'"
+      >
+        {{ descriptionPreview }}
       </p>
 
       <div class="mt-4 flex flex-wrap items-end justify-between gap-3">

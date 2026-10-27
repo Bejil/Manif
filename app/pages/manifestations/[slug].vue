@@ -168,7 +168,7 @@ async function submitReport() {
       />
     </PageHero>
 
-    <div class="container-page grid gap-8 py-8 pb-28 lg:grid-cols-[1fr_22rem] lg:gap-10 lg:pb-8">
+    <div class="container-page grid gap-8 py-8 lg:grid-cols-[1fr_22rem] lg:gap-10">
       <article>
         <div class="surface-card grid gap-4 p-5 sm:grid-cols-2">
           <div>
@@ -247,12 +247,6 @@ async function submitReport() {
         <ParticipationPanel :event="event" />
       </aside>
     </div>
-
-    <!-- Barre sticky mobile : visible jusqu’au bloc soutien/participation -->
-    <EventMobileStickyBar
-      :event="event"
-      :share-url="eventShareUrl"
-    />
 
     <UiModal :open="reportOpen" title="Signaler une erreur" @close="reportOpen = false">
       <form class="space-y-4" @submit.prevent="submitReport">

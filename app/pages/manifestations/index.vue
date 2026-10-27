@@ -2,6 +2,7 @@
 import { DateTime } from 'luxon'
 import type { EventMapPoint, EventPublic } from '#shared/types/event'
 import { SEO } from '#shared/content/seo'
+import { excerptText } from '#shared/utils/text'
 
 useSeoMeta({
   title: SEO.manifestations.title,
@@ -141,7 +142,7 @@ const agendaEvents = computed(() =>
 function slimEventForList(event: EventPublic): EventPublic {
   return {
     ...event,
-    description: '',
+    description: excerptText(event.description || '', 160),
     imageUrls: [],
     videoUrls: [],
     sourceUrl: null,

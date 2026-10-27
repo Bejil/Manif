@@ -5,9 +5,10 @@ import type { EngagementState } from '#shared/types/engagement'
  * Pas d'identifiant global transversal entre manifestations.
  */
 export function useParticipationToken(eventId: string) {
-  const storageKey = `manif:engagement:${eventId}`
+  const id = eventId.trim().toLowerCase()
+  const storageKey = `manif:engagement:${id}`
   /** Clé legacy pour migration douce des jetons déjà émis */
-  const legacyKey = `manif:participation:${eventId}`
+  const legacyKey = `manif:participation:${id}`
 
   function getOrCreateToken(): string {
     if (!import.meta.client) return ''
@@ -57,9 +58,10 @@ export function useParticipationToken(eventId: string) {
   function setLocalState(state: EngagementState) {
     if (!import.meta.client) return
     localStorage.setItem(`${storageKey}:state`, JSON.stringify(state))
-    rememberEngagement(eventId, state)
+    localStorage.removeItem(`${legacyKey}:state`)
+    rememberEngagement(id, state)
     window.dispatchEvent(new CustomEvent('manif:engagement-changed', {
-      detail: { eventId, state },
+      detail: { eventId: id, state },
     }))
   }
 

@@ -1,14 +1,30 @@
 <script setup lang="ts">
 const open = ref(false)
 
+const { engagedIds, refresh, reconcile } = useMyEngagements()
+const engagementCount = computed(() => engagedIds.value.length)
+const engagementBadgeLabel = computed(() =>
+  engagementCount.value > 99 ? '99+' : String(engagementCount.value),
+)
+const engagementBadgeClass = computed(() =>
+  engagementCount.value < 10
+    ? 'size-5'
+    : 'min-h-5 min-w-5 px-1.5 py-0.5',
+)
+
+onMounted(() => {
+  refresh()
+  void reconcile()
+})
+
 const links = [
   { to: '/manifestations', label: 'Manifestations' },
-  { to: '/mes-manifestations', label: 'Mes manifestations' },
+  { to: '/mes-manifestations', label: 'Mes manifestations', badge: true },
   { to: '/guide', label: 'Guide' },
   { to: '/faq', label: 'FAQ' },
   { to: '/comptage', label: 'Méthodologie' },
   { to: '/soutenir', label: 'Soutenir Manif\'' },
-]
+] as const
 
 watch(open, (v) => {
   if (import.meta.client) document.body.style.overflow = v ? 'hidden' : ''
@@ -34,10 +50,18 @@ watch(open, (v) => {
             v-for="link in links"
             :key="link.to"
             :to="link.to"
-            class="rounded-[4px] px-2.5 py-2 text-sm font-bold text-[#111111] transition hover:bg-[#F4F1EA]"
+            class="inline-flex items-center gap-1.5 rounded-[4px] px-2.5 py-2 text-sm font-bold text-[#111111] transition hover:bg-[#F4F1EA]"
             active-class="!bg-[#111111] !text-[#FFFCF4]"
           >
             {{ link.label }}
+            <span
+              v-if="'badge' in link && link.badge && engagementCount > 0"
+              class="inline-flex items-center justify-center rounded-full bg-[#D1271C] text-[10px] font-bold leading-none text-[#FFFCF4] tabular-nums"
+              :class="engagementBadgeClass"
+              :aria-label="`${engagementCount} manifestation${engagementCount > 1 ? 's' : ''}`"
+            >
+              {{ engagementBadgeLabel }}
+            </span>
           </NuxtLink>
         </nav>
         <NuxtLink to="/proposer" class="ml-1 shrink-0">
@@ -64,10 +88,18 @@ watch(open, (v) => {
           v-for="link in links"
           :key="link.to"
           :to="link.to"
-          class="rounded-[4px] px-3 py-3 text-base font-bold hover:bg-[#F4F1EA]"
+          class="inline-flex items-center gap-2 rounded-[4px] px-3 py-3 text-base font-bold hover:bg-[#F4F1EA]"
           @click="open = false"
         >
           {{ link.label }}
+          <span
+            v-if="'badge' in link && link.badge && engagementCount > 0"
+            class="inline-flex items-center justify-center rounded-full bg-[#D1271C] text-[10px] font-bold leading-none text-[#FFFCF4] tabular-nums"
+            :class="engagementBadgeClass"
+            :aria-label="`${engagementCount} manifestation${engagementCount > 1 ? 's' : ''}`"
+          >
+            {{ engagementBadgeLabel }}
+          </span>
         </NuxtLink>
         <NuxtLink to="/proposer" class="mt-2" @click="open = false">
           <UiButton block variant="red">Proposer une manifestation</UiButton>

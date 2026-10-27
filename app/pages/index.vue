@@ -43,6 +43,11 @@ const eventTotal = computed(() => countData.value?.total ?? mapData.value?.point
 const previewId = ref<string | null>(null)
 const selectedMapId = ref<string | null>(null)
 const { supportedIds, participatingIds, engagedIds } = useMyEngagements()
+const {
+  suggestions,
+  visible: suggestionsVisible,
+  pending: suggestionsPending,
+} = useHomeSuggestions()
 
 function onMapSelect(id: string) {
   selectedMapId.value = id
@@ -220,6 +225,50 @@ const engagementBlocks = [
         </div>
       </div>
     </section>
+
+    <!-- SUGGESTIONS PERSONNALISÉES -->
+    <ClientOnly>
+      <section
+        v-if="suggestionsVisible || suggestionsPending"
+        class="border-t border-[#DDDAD3] bg-[#FFFCF4]"
+      >
+        <div class="container-page py-10 md:py-14">
+          <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#6735B6]">Pour vous</p>
+              <h2 class="mf-display mf-h2 mt-2 text-[#111111]">
+                Suggestions
+              </h2>
+              <p class="mt-2 max-w-xl text-sm text-[#454545]">
+                Cinq manifestations à venir, proches de celles que vous soutenez ou auxquelles vous participez.
+              </p>
+            </div>
+            <NuxtLink to="/mes-manifestations" class="text-sm font-bold text-[#6735B6] hover:underline">
+              Mes manifestations
+            </NuxtLink>
+          </div>
+
+          <p
+            v-if="suggestionsPending && !suggestions.length"
+            class="mt-8 text-sm text-[#454545]"
+          >
+            Chargement des suggestions…
+          </p>
+
+          <div
+            v-else-if="suggestions.length"
+            class="mt-8 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-5 lg:overflow-visible lg:pb-0"
+          >
+            <EventSuggestionCard
+              v-for="e in suggestions"
+              :key="e.id"
+              :event="e"
+              class="w-[16.5rem] shrink-0 lg:w-auto"
+            />
+          </div>
+        </div>
+      </section>
+    </ClientOnly>
 
     <!-- SOUTENIR ≠ PARTICIPER -->
     <section class="border-y border-[#DDDAD3] bg-[#111111] text-[#FFFCF4]">
