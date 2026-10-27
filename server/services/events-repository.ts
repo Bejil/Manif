@@ -298,12 +298,21 @@ export async function upsertEvent(event: EventRecord): Promise<EventRecord> {
     return event
   }
   const supabase = getServiceSupabase()
+  const row = eventToRow(event)
   const { data, error } = await supabase
     .from('events')
-    .upsert(eventToRow(event))
+    .upsert(row, { onConflict: 'id' })
     .select('*')
     .single()
-  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  if (error) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: `Écriture événement impossible: ${error.message}`,
+    })
+  }
+  if (!data) {
+    throw createError({ statusCode: 500, statusMessage: 'Écriture événement: aucune ligne retournée' })
+  }
   return rowToEvent(data)
 }
 

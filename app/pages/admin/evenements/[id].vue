@@ -214,6 +214,24 @@ async function saveEdit() {
   }
 }
 
+async function publish() {
+  if (!event.value) return
+  actionBusy.value = true
+  saveError.value = null
+  try {
+    await $fetch(`/api/admin/events/${event.value.id}/publish`, { method: 'POST' })
+    message.value = 'Événement publié.'
+    await refresh()
+  }
+  catch (e: unknown) {
+    const err = e as { data?: { statusMessage?: string } }
+    saveError.value = err?.data?.statusMessage || 'Publication impossible.'
+  }
+  finally {
+    actionBusy.value = false
+  }
+}
+
 async function unpublish() {
   if (!event.value) return
   actionBusy.value = true
@@ -406,9 +424,20 @@ async function mergeIntoTarget() {
             {{ event.slug }} · {{ event.displayStatus }} · {{ event.publicationStatus }}
           </p>
         </div>
-        <NuxtLink :to="`/manifestations/${event.slug}`" target="_blank">
-          <UiButton size="sm" variant="outline">Voir la fiche</UiButton>
+        <NuxtLink
+          v-if="event.publicationStatus === 'published'"
+          :to="`/manifestations/${event.slug}`"
+          target="_blank"
+        >
+          <UiButton size="sm" variant="outline">Voir la fiche publique</UiButton>
         </NuxtLink>
+        <p
+          v-else
+          class="max-w-xs text-right text-xs text-[#805200]"
+        >
+          Brouillon / dépublié — invisible sur le site public.
+          Utilisez le bouton Publier à droite.
+        </p>
       </div>
 
       <p v-if="message" class="mb-4 text-sm font-semibold text-[#206C4D]">{{ message }}</p>
@@ -569,6 +598,16 @@ async function mergeIntoTarget() {
 
             <div class="mt-4 flex flex-col gap-2">
               <UiButton
+                v-if="event.publicationStatus !== 'published'"
+                size="sm"
+                variant="red"
+                block
+                :disabled="actionBusy"
+                @click="publish"
+              >
+                Publier
+              </UiButton>
+              <UiButton
                 size="sm"
                 variant="outline"
                 block
@@ -578,6 +617,7 @@ async function mergeIntoTarget() {
                 Annuler l’événement
               </UiButton>
               <UiButton
+                v-if="event.publicationStatus === 'published'"
                 size="sm"
                 variant="ghost"
                 block

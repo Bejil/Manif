@@ -176,6 +176,20 @@ function fmt(n: number | undefined | null) {
         </NuxtLink>
       </div>
 
+      <NuxtLink
+        to="/admin/imports"
+        class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-[#DDDAD3] bg-[#111111] p-5 text-[#FFFCF4] transition hover:bg-[#252525]"
+      >
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#9C6EE8]">Sources</p>
+          <p class="mf-display mt-1 text-2xl">Imports multi-sources</p>
+          <p class="mt-1 text-sm text-[#FFFCF4]/65">
+            AMI · Démosphère · manifs.fr · ManifRadar · Mobilizon XR
+          </p>
+        </div>
+        <span class="text-sm font-bold text-[#9C6EE8]">Ouvrir →</span>
+      </NuxtLink>
+
       <div
         v-if="dash?.countingAnomalies?.length"
         class="mt-6 rounded-[8px] border border-[#805200]/30 bg-[#FFF8E8] p-4 text-sm text-[#805200]"

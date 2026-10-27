@@ -5,6 +5,7 @@ const route = useRoute()
 const links = [
   { to: '/admin', label: 'Tableau de bord', exact: true },
   { to: '/admin/evenements', label: 'Événements' },
+  { to: '/admin/imports', label: 'Imports' },
   { to: '/admin/propositions', label: 'Propositions' },
   { to: '/admin/signalements', label: 'Signalements' },
 ]
