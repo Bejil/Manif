@@ -80,6 +80,16 @@ export default defineNuxtConfig({
       || process.env.ADMIN_PASSWORD
       || (process.env.NODE_ENV === 'production' ? '' : 'dev-admin-change-me'),
     rateLimitSalt: process.env.RATE_LIMIT_SALT || 'dev-rate-salt',
+    /** Secret Vercel Cron (Authorization: Bearer …). Aussi lu via process.env.CRON_SECRET. */
+    cronSecret: process.env.CRON_SECRET || '',
+    /** Import quotidien : sources CSV (défaut = toutes). */
+    importCronSources: process.env.IMPORT_CRON_SOURCES || '',
+    /** draft | published (défaut published). */
+    importCronMode: process.env.IMPORT_CRON_MODE || 'published',
+    /** Budget ms par invocation avant enchaînement (défaut 240000). */
+    importCronBudgetMs: process.env.IMPORT_CRON_BUDGET_MS || '240000',
+    /** false pour couper le cron sans retirer la schedule. */
+    importCronEnabled: process.env.IMPORT_CRON_ENABLED !== 'false',
 
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://manif.info',
@@ -135,6 +145,16 @@ export default defineNuxtConfig({
   nitro: {
     experimental: {
       openAPI: false,
+      tasks: true,
+    },
+    /** 05:00 UTC ≈ 06h/07h Europe/Paris — généré en cron Vercel au build. */
+    scheduledTasks: {
+      '0 5 * * *': ['imports:daily'],
+    },
+    vercel: {
+      functions: {
+        maxDuration: 300,
+      },
     },
   },
 

@@ -61,6 +61,20 @@ Respecter les conditions d'utilisation et l'attribution.
 
 Nuxt 4 / Nitro est détecté automatiquement : **pas de `vercel.json` requis**. Build = `nuxt build` (SSR).
 
+### Import quotidien (Cron)
+
+Nitro `scheduledTasks` génère un **Vercel Cron** au build : tous les jours à **05:00 UTC** (`imports:daily`).
+
+1. Dans Vercel → Settings → Environment Variables, ajouter :
+   - `CRON_SECRET` — chaîne aléatoire ≥ 16 caractères (**obligatoire** : sinon le handler cron n’est pas authentifié)
+   - optionnel : `IMPORT_CRON_MODE=published` (ou `draft`)
+   - optionnel : `IMPORT_CRON_SOURCES=ami,demosphere,manifs,manifradar,mobilizon_xr`
+   - optionnel : `IMPORT_CRON_ENABLED=false` pour couper sans retirer la schedule
+2. Redeploy
+3. Vérifier Settings → Cron Jobs : chemin généré par Nitro, schedule `0 5 * * *`
+
+L’import peut s’enchaîner via `/api/cron/imports-continue` si une invocation atteint le budget temps (~4 min, `maxDuration` 300 s). Suivi dans `/admin/imports`.
+
 ### 1. Mettre le code sur GitHub
 
 ```bash
@@ -106,6 +120,7 @@ Vercel → Project → **Settings → Environment Variables**. Coller au minimum
 | `TURNSTILE_HOSTNAMES` | `manif.info,www.manif.info` |
 | `EMAIL_FROM` | `Manif' <contact@manif.info>` |
 | `RESEND_API_KEY` | si e-mails activés |
+| `CRON_SECRET` | secret ≥ 16 car. pour le cron d’import quotidien |
 | Mentions légales | `NUXT_PUBLIC_LEGAL_*` |
 
 Puis **Redeploy** (Deployments → ⋮ → Redeploy).
