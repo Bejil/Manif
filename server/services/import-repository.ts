@@ -368,6 +368,63 @@ export async function countCandidatesByStatuses(
   return count ?? 0
 }
 
+/** Recalcule les compteurs d’écriture à partir des candidats (évite stats désync). */
+export async function recountImportWriteStats(runId: string): Promise<{
+  ready: number
+  duplicates: number
+  created: number
+  updated: number
+  skipped: number
+  errors: number
+}> {
+  if (useMockDb()) {
+    const items = ensureMockImports().importCandidates.filter(c => c.runId === runId)
+    let ready = 0
+    let duplicates = 0
+    let created = 0
+    let updated = 0
+    let skipped = 0
+    let errors = 0
+    for (const c of items) {
+      if (c.status === 'ready') ready++
+      else if (c.status === 'duplicate') duplicates++
+      else if (c.status === 'skipped') skipped++
+      else if (c.status === 'error') errors++
+      else if (c.status === 'applied') {
+        if (c.payload?.applyKind === 'updated' || c.matchEventId) updated++
+        else created++
+      }
+    }
+    return { ready, duplicates, created, updated, skipped, errors }
+  }
+
+  const { data, error } = await getServiceSupabase()
+    .from('import_candidates')
+    .select('status, match_event_id, payload')
+    .eq('run_id', runId)
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+
+  let ready = 0
+  let duplicates = 0
+  let created = 0
+  let updated = 0
+  let skipped = 0
+  let errors = 0
+  for (const row of data ?? []) {
+    const status = String(row.status)
+    const payload = (row.payload || {}) as Record<string, unknown>
+    if (status === 'ready') ready++
+    else if (status === 'duplicate') duplicates++
+    else if (status === 'skipped') skipped++
+    else if (status === 'error') errors++
+    else if (status === 'applied') {
+      if (payload.applyKind === 'updated' || row.match_event_id) updated++
+      else created++
+    }
+  }
+  return { ready, duplicates, created, updated, skipped, errors }
+}
+
 export async function updateCandidate(
   id: string,
   patch: Partial<ImportCandidateRecord>,

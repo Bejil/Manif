@@ -19,6 +19,7 @@ import {
   getImportRun,
   getPendingCandidates,
   insertCandidates,
+  recountImportWriteStats,
   updateCandidate,
   updateImportRun,
   type ImportMatchReason,
@@ -123,7 +124,31 @@ export async function continueImportRun(runId: string): Promise<{
       })
     }
     else {
-      return { run, done: true, step: run.status }
+      // Stats parfois en retard sur la DB : resync puis sortir
+      const recounted = await recountImportWriteStats(runId)
+      if (recounted.ready + recounted.duplicates > 0) {
+        run = await updateImportRun(runId, {
+          status: 'applying',
+          finishedAt: null,
+          stats: { ...run.stats, ...recounted },
+          progress: {
+            ...run.progress,
+            message: `Reprise — ${recounted.ready + recounted.duplicates} candidat(s) encore à écrire…`,
+          },
+        })
+      }
+      else {
+        const synced = await updateImportRun(runId, {
+          stats: { ...run.stats, ...recounted },
+          progress: {
+            ...run.progress,
+            message: 'Import terminé',
+            phase: 'done',
+            percent: 100,
+          },
+        })
+        return { run: synced, done: true, step: run.status }
+      }
     }
   }
 
@@ -241,9 +266,26 @@ export async function continueImportRun(runId: string): Promise<{
       })
       return { run: fresh, done: false, step: 'apply-retry' }
     }
+    // Resync stats depuis la DB (évite « 1 prêt » fantôme après écriture)
+    const live = await getImportRun(runId)
+    const recounted = await recountImportWriteStats(runId)
+    if (recounted.ready + recounted.duplicates > 0) {
+      const fresh = await updateImportRun(runId, {
+        status: 'applying',
+        finishedAt: null,
+        stats: { ...(live?.stats || run.stats), ...recounted },
+        progress: {
+          ...run.progress,
+          message: `Écriture… ${recounted.ready + recounted.duplicates} candidat(s) restant(s)`,
+          phase: 'apply',
+        },
+      })
+      return { run: fresh, done: false, step: 'apply-retry' }
+    }
     const next = await updateImportRun(runId, {
       status: 'completed',
       finishedAt: nowIso(),
+      stats: { ...(live?.stats || run.stats), ...recounted },
       progress: {
         ...run.progress,
         message: 'Import terminé',
@@ -355,12 +397,8 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
   const { items } = await listCandidatesForApply(runId, 20)
   if (!items.length) {
     const still = await countCandidatesByStatuses(runId, ['ready', 'duplicate'])
-    if (still > 0) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Écriture bloquée : ${still} candidat(s) prêts introuvables à l’application`,
-      })
-    }
+    // Course possible avec une autre invocation : retenter plutôt que planter le cron
+    if (still > 0) return { exhausted: false }
     return { exhausted: true }
   }
 

@@ -54,6 +54,7 @@ const candidatesQuery = computed(() => ({
 }))
 
 const RUN_FINISHED = new Set(['completed', 'cancelled', 'failed'])
+const RUN_LIVE = new Set(['pending', 'running', 'scraped', 'applying'])
 
 /** Prêts/doublons encore non écrits (stats cumulatives côté préparation). */
 const needsWrite = computed(() => {
@@ -64,19 +65,19 @@ const needsWrite = computed(() => {
   return prepared > written
 })
 
+/** Vrai seulement pendant scrape / préparation / écriture — pas un « completed » désynchronisé. */
 const runInProgress = computed(() => {
   const s = activeRun.value?.status
-  if (!s) return false
-  if (s === 'cancelled' || s === 'failed') return false
-  if (!RUN_FINISHED.has(s)) return true
-  // « completed » trop tôt : il reste des candidats à écrire
-  return needsWrite.value
+  return Boolean(s && RUN_LIVE.has(s))
 })
 
+/** Terminé côté statut, mais stats suggèrent une écriture incomplète. */
+const writeIncomplete = computed(() =>
+  activeRun.value?.status === 'completed' && needsWrite.value,
+)
+
 const showCandidates = computed(() =>
-  !!activeRun.value
-  && activeRun.value.status === 'completed'
-  && !needsWrite.value,
+  !!activeRun.value && activeRun.value.status === 'completed',
 )
 
 const { data: detailData, refresh: refreshDetail, pending: detailPending } = await useFetch<{
@@ -385,28 +386,33 @@ const candidateTotalPages = computed(() => {
 const showResume = computed(() => {
   const s = activeRun.value?.status
   if (!s || s === 'cancelled' || s === 'failed') return false
-  if (!RUN_FINISHED.has(s)) return true
-  return needsWrite.value
+  if (RUN_LIVE.has(s)) return true
+  return writeIncomplete.value
 })
 
 const lastRunHeading = computed(() => {
   const run = activeRun.value
   if (!run) return 'Dernier import'
   if (busy.value || runInProgress.value) return 'Import en cours'
+  if (writeIncomplete.value) return 'Import à finaliser'
   if (run.status === 'cancelled') return 'Import annulé'
   if (run.status === 'failed') return 'Import en échec'
   const when = formatRunDate(run.finishedAt || run.updatedAt || run.createdAt)
   return when ? `Dernier import · ${when}` : 'Dernier import'
 })
 
-/** Reprend automatiquement un import interrompu avant l’écriture en base. */
-let autoResumeTried = false
-onMounted(() => {
-  if (!import.meta.client || autoResumeTried) return
-  if (!showResume.value || !activeRun.value || busy.value) return
-  autoResumeTried = true
-  void resumeRun()
-})
+/** Reprend automatiquement un import interrompu / stats désynchronisées. */
+let autoResumeTriedFor: string | null = null
+watch(
+  [showResume, () => activeRun.value?.id, busy],
+  ([resume, id, isBusy]) => {
+    if (!import.meta.client || !resume || !id || isBusy) return
+    if (autoResumeTriedFor === id) return
+    autoResumeTriedFor = id
+    void resumeRun()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -510,6 +516,13 @@ onMounted(() => {
             <p class="mt-2 text-sm text-[#454545]">
               {{ activeRun.progress?.message || '—' }}
             </p>
+            <p
+              v-if="writeIncomplete && !busy"
+              class="mt-2 text-sm font-semibold text-[#805200]"
+            >
+              L’écriture n’est pas allée au bout (compteurs désynchronisés).
+              Utilisez « Reprendre / finir l’écriture » si la reprise auto n’a pas suffi.
+            </p>
 
             <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <div class="rounded-[4px] bg-[#F4F1EA] p-3">
@@ -563,7 +576,7 @@ onMounted(() => {
           </h2>
 
           <div
-            v-if="runInProgress || busy"
+            v-if="(runInProgress || busy) && !showCandidates"
             class="mt-6 flex flex-col items-center justify-center gap-4 py-8 text-center"
             role="status"
             aria-live="polite"
