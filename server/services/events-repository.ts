@@ -108,12 +108,17 @@ async function fetchPublishedForList(): Promise<EventRecord[]> {
     return getMockStore().events.filter(e => e.publicationStatus === 'published')
   }
   const supabase = getServiceSupabase()
+  // Ne pas prendre les 2000 plus anciens (masque les imports récents / à venir).
+  // Fenêtre : sans date, en cours, ou à venir / récents (7 jours).
+  const horizon = DateTime.utc().minus({ days: 7 }).toISO()
+  // Guillemets : l’ISO contient `:` / `+` qui cassent le filtre .or() sinon
   const { data, error } = await supabase
     .from('events')
     .select(LIST_COLUMNS)
     .eq('publication_status', 'published')
-    .order('start_at', { ascending: true })
-    .limit(2000)
+    .or(`start_at.is.null,start_at.gte."${horizon}"`)
+    .order('start_at', { ascending: true, nullsFirst: true })
+    .limit(3000)
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
   return (data ?? []).map(row => rowToEvent({
     ...row,

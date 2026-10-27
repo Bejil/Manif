@@ -79,11 +79,6 @@ export default defineNuxtConfig({
       process.env.NUXT_ADMIN_PASSWORD
       || process.env.ADMIN_PASSWORD
       || (process.env.NODE_ENV === 'production' ? '' : 'dev-admin-change-me'),
-    geocodingProvider: process.env.GEOCODING_PROVIDER || 'ban',
-    geocodingApiKey: process.env.GEOCODING_API_KEY || '',
-    mapStyleUrl:
-      process.env.MAP_STYLE_URL
-      || 'https://tiles.openfreemap.org/styles/liberty',
     rateLimitSalt: process.env.RATE_LIMIT_SALT || 'dev-rate-salt',
 
     public: {

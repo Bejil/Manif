@@ -27,7 +27,7 @@ async function login() {
     await navigateTo('/admin')
   }
   catch {
-    loginError.value = 'Connexion impossible — en local : mot de passe « dev-admin-change-me »'
+    loginError.value = 'Connexion impossible'
   }
 }
 
@@ -146,9 +146,6 @@ function fmt(n: number | undefined | null) {
         <UiInput id="admin-email" v-model="email" label="E-mail" type="email" required autocomplete="username" />
         <UiInput id="admin-password" v-model="password" label="Mot de passe" type="password" required autocomplete="current-password" />
         <p v-if="loginError" class="text-sm text-[#AD291F]">{{ loginError }}</p>
-        <p class="text-xs text-[#636363]">
-          En développement : mot de passe <code class="font-semibold">dev-admin-change-me</code>.
-        </p>
         <UiButton type="submit" variant="red" block>Se connecter</UiButton>
       </form>
     </div>

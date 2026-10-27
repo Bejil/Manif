@@ -1,6 +1,15 @@
 <script setup lang="ts">
 const open = ref(false)
 const route = useRoute()
+const loggingOut = ref(false)
+
+const cookieHeaders = import.meta.server
+  ? useRequestHeaders(['cookie'])
+  : undefined
+const { data: me } = await useFetch<{ authenticated: boolean }>('/api/admin/me', {
+  headers: cookieHeaders,
+  credentials: 'include',
+})
 
 const links = [
   { to: '/admin', label: 'Tableau de bord', exact: true },
@@ -13,6 +22,20 @@ const links = [
 function isActive(link: { to: string, exact?: boolean }) {
   if (link.exact) return route.path === link.to
   return route.path === link.to || route.path.startsWith(`${link.to}/`)
+}
+
+async function logout() {
+  if (loggingOut.value) return
+  loggingOut.value = true
+  try {
+    await $fetch('/api/admin/logout', { method: 'POST', credentials: 'include' })
+    open.value = false
+    await navigateTo('/admin')
+    reloadNuxtApp()
+  }
+  finally {
+    loggingOut.value = false
+  }
 }
 
 watch(open, (v) => {
@@ -46,6 +69,16 @@ watch(open, (v) => {
           <NuxtLink to="/" class="ml-2">
             <UiButton size="sm" variant="outline">Site public</UiButton>
           </NuxtLink>
+          <UiButton
+            v-if="me?.authenticated"
+            size="sm"
+            variant="ghost"
+            class="ml-1"
+            :disabled="loggingOut"
+            @click="logout"
+          >
+            {{ loggingOut ? 'Déconnexion…' : 'Déconnexion' }}
+          </UiButton>
         </nav>
 
         <button
@@ -75,6 +108,16 @@ watch(open, (v) => {
           <NuxtLink to="/" class="mt-2" @click="open = false">
             <UiButton block variant="outline">Site public</UiButton>
           </NuxtLink>
+          <UiButton
+            v-if="me?.authenticated"
+            block
+            variant="ghost"
+            class="mt-1"
+            :disabled="loggingOut"
+            @click="logout"
+          >
+            {{ loggingOut ? 'Déconnexion…' : 'Déconnexion' }}
+          </UiButton>
         </nav>
       </div>
     </header>

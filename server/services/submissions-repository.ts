@@ -159,7 +159,16 @@ export async function createSubmission(input: {
       verification_expires_at: base.verificationExpiresAt,
       moderation_status: base.moderationStatus,
     }).select('id').single()
-    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+    if (error) {
+      if (/row-level security/i.test(error.message)) {
+        throw createError({
+          statusCode: 503,
+          statusMessage:
+            'Écriture refusée par Supabase (RLS). Vérifiez NUXT_SUPABASE_SERVICE_ROLE_KEY (clé service_role / sb_secret_, pas anon).',
+        })
+      }
+      throw createError({ statusCode: 500, statusMessage: error.message })
+    }
     id = data.id
   }
 
