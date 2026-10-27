@@ -39,6 +39,105 @@ export async function sendEmail(input: {
   return { mocked: false }
 }
 
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function bodyParagraph(html: string) {
+  return `<p style="margin:0 0 14px;">${html}</p>`
+}
+
+function bodyBlockquote(text: string, color = '#6735B6') {
+  return `<blockquote style="margin:0 0 14px;border-left:3px solid ${color};padding-left:12px;color:#454545;white-space:pre-wrap;">${escapeHtml(text)}</blockquote>`
+}
+
+/** Layout HTML commun Manif' (compatible clients mail). */
+export function renderEmailLayout(opts: {
+  preview: string
+  title: string
+  bodyHtml: string
+  ctaUrl?: string
+  ctaLabel?: string
+  footerNote?: string
+  siteUrl?: string
+}) {
+  const siteUrl = (opts.siteUrl || 'https://manif.info').replace(/\/$/, '')
+  const preview = escapeHtml(opts.preview)
+  const title = escapeHtml(opts.title)
+  const footer = escapeHtml(
+    opts.footerNote
+    || '— Manif\' (plateforme citoyenne indépendante)',
+  )
+  const cta = opts.ctaUrl && opts.ctaLabel
+    ? `
+          <tr>
+            <td style="padding:20px 28px 8px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="border-radius:4px;background-color:#111111;">
+                    <a href="${escapeHtml(opts.ctaUrl)}"
+                       style="display:inline-block;padding:14px 22px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#FFFCF4;text-decoration:none;">
+                      ${escapeHtml(opts.ctaLabel)}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`
+    : ''
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Manif'</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F4F1EA;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${preview}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F4F1EA;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background-color:#FFFCF4;border:1px solid #DDDAD3;border-radius:8px;">
+          <tr>
+            <td style="padding:24px 28px 16px;border-bottom:1px solid #DDDAD3;">
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#D1271C;">Manif'</p>
+              <p style="margin:8px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#636363;">L’agenda citoyen des manifestations</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 28px 8px;">
+              <h1 style="margin:0;font-family:Arial Black,Arial,Helvetica,sans-serif;font-size:26px;line-height:1.15;letter-spacing:0.01em;text-transform:uppercase;color:#111111;">${title}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:12px 28px 8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:#454545;">
+              ${opts.bodyHtml}
+            </td>
+          </tr>
+          ${cta}
+          <tr>
+            <td style="padding:28px;border-top:1px solid #DDDAD3;">
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#636363;">${footer}</p>
+              <p style="margin:12px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#636363;">
+                <a href="${escapeHtml(siteUrl)}" style="color:#6735B6;text-decoration:underline;">manif.info</a>
+                · Neutre · Gratuit · Sans compte public
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
 export function buildVerificationEmail(opts: {
   siteUrl: string
   token: string
@@ -46,7 +145,7 @@ export function buildVerificationEmail(opts: {
 }) {
   const base = opts.siteUrl.replace(/\/$/, '')
   const link = `${base}/proposer/confirmation?token=${encodeURIComponent(opts.token)}`
-  const subject = `Confirmez votre proposition — Manif'`
+  const subject = `Manif' — Confirmez votre proposition`
   const text = [
     `Vous avez proposé la manifestation « ${opts.title} » sur Manif'.`,
     '',
@@ -58,11 +157,18 @@ export function buildVerificationEmail(opts: {
     '— Manif\' (plateforme citoyenne indépendante)',
   ].join('\n')
 
-  const html = `
-    <p>Vous avez proposé la manifestation <strong>${escapeHtml(opts.title)}</strong> sur Manif'.</p>
-    <p><a href="${link}">Confirmer mon adresse e-mail</a> (valable 24 heures)</p>
-    <p>Si vous n'êtes pas à l'origine de cette proposition, ignorez ce message.</p>
-  `
+  const html = renderEmailLayout({
+    siteUrl: base,
+    preview: 'Confirmez votre proposition sur Manif\'',
+    title: 'Confirmez votre e-mail',
+    bodyHtml: [
+      bodyParagraph(`Vous avez proposé la manifestation <strong>${escapeHtml(opts.title)}</strong> sur Manif'.`),
+      bodyParagraph('Ce lien de confirmation est valable <strong>24 heures</strong>.'),
+    ].join(''),
+    ctaUrl: link,
+    ctaLabel: 'Confirmer mon adresse e-mail',
+    footerNote: 'Si vous n’êtes pas à l’origine de cette proposition, ignorez ce message.',
+  })
 
   return { subject, text, html, link }
 }
@@ -78,8 +184,8 @@ export function buildAdminPendingModerationEmail(opts: {
   const link = `${base}/admin/propositions/${opts.submissionId}`
   const isUpdate = opts.kind === 'updated'
   const subject = isUpdate
-    ? `Proposition modifiée à valider — « ${opts.title} » — Manif'`
-    : `Nouvelle proposition à valider — « ${opts.title} » — Manif'`
+    ? `Manif' — Proposition modifiée à valider — « ${opts.title} »`
+    : `Manif' — Nouvelle proposition à valider — « ${opts.title} »`
   const lead = isUpdate
     ? 'Une proposition a été modifiée et revient en file de modération.'
     : 'Une nouvelle proposition d’événement est à valider.'
@@ -95,14 +201,18 @@ export function buildAdminPendingModerationEmail(opts: {
     '— Manif\'',
   ].join('\n')
 
-  const html = `
-    <p>${escapeHtml(lead)}</p>
-    <p>
-      <strong>${escapeHtml(opts.title)}</strong><br>
-      ${escapeHtml(opts.cityName)}
-    </p>
-    <p><a href="${link}">Ouvrir la proposition dans l’admin</a></p>
-  `
+  const html = renderEmailLayout({
+    siteUrl: base,
+    preview: lead,
+    title: isUpdate ? 'Proposition à revoir' : 'Nouvelle proposition',
+    bodyHtml: [
+      bodyParagraph(escapeHtml(lead)),
+      bodyParagraph(`<strong>${escapeHtml(opts.title)}</strong><br>${escapeHtml(opts.cityName)}`),
+    ].join(''),
+    ctaUrl: link,
+    ctaLabel: 'Ouvrir dans l’admin',
+    footerNote: '— Manif\'',
+  })
 
   return { subject, text, html, link }
 }
@@ -118,7 +228,7 @@ export function buildAdminNewReportEmail(opts: {
   const base = opts.siteUrl.replace(/\/$/, '')
   const link = `${base}/admin/signalements/${opts.reportId}`
   const eventLink = `${base}/manifestations/${opts.eventSlug}`
-  const subject = `Nouveau signalement — « ${opts.eventTitle} » — Manif'`
+  const subject = `Manif' — Nouveau signalement — « ${opts.eventTitle} »`
   const details = (opts.details || '').trim()
   const text = [
     'Un signalement vient d’être déposé sur Manif\'.',
@@ -136,18 +246,20 @@ export function buildAdminNewReportEmail(opts: {
     '— Manif\'',
   ].join('\n')
 
-  const html = `
-    <p>Un signalement vient d’être déposé sur Manif'.</p>
-    <p>
-      <strong>${escapeHtml(opts.eventTitle)}</strong><br>
-      Motif : ${escapeHtml(opts.reasonLabel)}
-    </p>
-    ${details
-      ? `<p>Précisions :</p><blockquote style="border-left:3px solid #AD291F;padding-left:12px;color:#454545;white-space:pre-wrap;">${escapeHtml(details)}</blockquote>`
-      : ''}
-    <p><a href="${link}">Ouvrir le signalement dans l’admin</a></p>
-    <p><a href="${eventLink}">Voir la fiche publique</a></p>
-  `
+  const html = renderEmailLayout({
+    siteUrl: base,
+    preview: `Signalement : ${opts.eventTitle}`,
+    title: 'Nouveau signalement',
+    bodyHtml: [
+      bodyParagraph('Un signalement vient d’être déposé sur Manif\'.'),
+      bodyParagraph(`<strong>${escapeHtml(opts.eventTitle)}</strong><br>Motif : ${escapeHtml(opts.reasonLabel)}`),
+      details ? `<p style="margin:0 0 8px;">Précisions :</p>${bodyBlockquote(details, '#AD291F')}` : '',
+      bodyParagraph(`<a href="${escapeHtml(eventLink)}" style="color:#6735B6;">Voir la fiche publique</a>`),
+    ].join(''),
+    ctaUrl: link,
+    ctaLabel: 'Ouvrir le signalement',
+    footerNote: '— Manif\'',
+  })
 
   return { subject, text, html, link }
 }
@@ -159,7 +271,7 @@ export function buildSubmissionApprovedEmail(opts: {
 }) {
   const base = opts.siteUrl.replace(/\/$/, '')
   const link = `${base}/manifestations/${opts.eventSlug}`
-  const subject = `Proposition publiée — « ${opts.title} » — Manif'`
+  const subject = `Manif' — Proposition publiée — « ${opts.title} »`
   const text = [
     `Bonne nouvelle : votre proposition « ${opts.title} » a été validée et publiée sur Manif'.`,
     '',
@@ -169,10 +281,16 @@ export function buildSubmissionApprovedEmail(opts: {
     '— Manif\' (plateforme citoyenne indépendante)',
   ].join('\n')
 
-  const html = `
-    <p>Bonne nouvelle : votre proposition <strong>${escapeHtml(opts.title)}</strong> a été validée et publiée sur Manif'.</p>
-    <p><a href="${link}">Voir la fiche publique</a></p>
-  `
+  const html = renderEmailLayout({
+    siteUrl: base,
+    preview: `Votre proposition « ${opts.title} » est publiée`,
+    title: 'Proposition publiée',
+    bodyHtml: bodyParagraph(
+      `Bonne nouvelle : votre proposition <strong>${escapeHtml(opts.title)}</strong> a été validée et publiée sur Manif'.`,
+    ),
+    ctaUrl: link,
+    ctaLabel: 'Voir la fiche publique',
+  })
 
   return { subject, text, html, link }
 }
@@ -180,8 +298,9 @@ export function buildSubmissionApprovedEmail(opts: {
 export function buildSubmissionRejectedEmail(opts: {
   title: string
   reason?: string | null
+  siteUrl?: string
 }) {
-  const subject = `Proposition non retenue — « ${opts.title} » — Manif'`
+  const subject = `Manif' — Proposition non retenue — « ${opts.title} »`
   const reason = (opts.reason || '').trim()
   const text = [
     `Votre proposition « ${opts.title} » n’a pas été retenue pour publication sur Manif'.`,
@@ -194,13 +313,20 @@ export function buildSubmissionRejectedEmail(opts: {
     '— Manif\' (plateforme citoyenne indépendante)',
   ].join('\n')
 
-  const html = `
-    <p>Votre proposition <strong>${escapeHtml(opts.title)}</strong> n’a pas été retenue pour publication sur Manif'.</p>
-    ${reason
-      ? `<p>Motif :</p><blockquote style="border-left:3px solid #AD291F;padding-left:12px;color:#454545;white-space:pre-wrap;">${escapeHtml(reason)}</blockquote>`
-      : ''}
-    <p>Vous pouvez proposer une autre manifestation via le formulaire Proposer.</p>
-  `
+  const html = renderEmailLayout({
+    siteUrl: opts.siteUrl,
+    preview: `Proposition non retenue : ${opts.title}`,
+    title: 'Proposition non retenue',
+    bodyHtml: [
+      bodyParagraph(
+        `Votre proposition <strong>${escapeHtml(opts.title)}</strong> n’a pas été retenue pour publication sur Manif'.`,
+      ),
+      reason
+        ? `<p style="margin:0 0 8px;">Motif :</p>${bodyBlockquote(reason, '#AD291F')}`
+        : '',
+      bodyParagraph('Vous pouvez proposer une autre manifestation via le formulaire Proposer.'),
+    ].join(''),
+  })
 
   return { subject, text, html }
 }
@@ -213,7 +339,7 @@ export function buildChangesRequestedEmail(opts: {
 }) {
   const base = opts.siteUrl.replace(/\/$/, '')
   const editLink = `${base}/proposer?edit=${encodeURIComponent(opts.editToken)}`
-  const subject = `Modifications demandées — « ${opts.title} » — Manif'`
+  const subject = `Manif' — Modifications demandées — « ${opts.title} »`
   const text = [
     `Concernant votre proposition « ${opts.title} » sur Manif' :`,
     '',
@@ -227,20 +353,21 @@ export function buildChangesRequestedEmail(opts: {
     '— Manif\' (plateforme citoyenne indépendante)',
   ].join('\n')
 
-  const html = `
-    <p>Concernant votre proposition <strong>${escapeHtml(opts.title)}</strong> sur Manif' :</p>
-    <p>L’équipe de modération souhaite des précisions ou des corrections avant publication :</p>
-    <blockquote style="border-left:3px solid #6735B6;padding-left:12px;color:#454545;white-space:pre-wrap;">${escapeHtml(opts.message)}</blockquote>
-    <p><a href="${editLink}">Modifier et renvoyer ma proposition</a> (lien valable 14 jours)</p>
-  `
+  const html = renderEmailLayout({
+    siteUrl: base,
+    preview: `Modifications demandées pour « ${opts.title} »`,
+    title: 'Modifications demandées',
+    bodyHtml: [
+      bodyParagraph(
+        `Concernant votre proposition <strong>${escapeHtml(opts.title)}</strong> sur Manif' :`,
+      ),
+      bodyParagraph('L’équipe de modération souhaite des précisions ou des corrections avant publication :'),
+      bodyBlockquote(opts.message, '#6735B6'),
+      bodyParagraph('Le lien de modification est valable <strong>14 jours</strong>.'),
+    ].join(''),
+    ctaUrl: editLink,
+    ctaLabel: 'Modifier et renvoyer ma proposition',
+  })
 
   return { subject, text, html, editLink }
-}
-
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }

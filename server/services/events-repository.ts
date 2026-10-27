@@ -198,19 +198,10 @@ export async function listEvents(query: EventListQuery) {
   return { items, total: all.length, page, pageSize }
 }
 
-export async function listAllEventsAdmin() {
-  const mapAdmin = async (events: EventRecord[]) => {
-    const countsMap = await getEventCountsBatch(events.map(e => e.id))
-    return events.map(e => toPublic(
-      e,
-      countsMap.get(e.id) ?? { supports: 0, participations: 0 },
-      { maskLocation: false },
-    ))
-  }
-
+async function fetchAllEventRecordsAdmin(): Promise<EventRecord[]> {
   if (useMockDb()) {
     ensureSeeded()
-    return mapAdmin(getMockStore().events)
+    return getMockStore().events.slice()
   }
   const supabase = getServiceSupabase()
   const { data, error } = await supabase
@@ -218,7 +209,93 @@ export async function listAllEventsAdmin() {
     .select('*')
     .order('start_at', { ascending: false, nullsFirst: false })
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-  return mapAdmin((data ?? []).map(rowToEvent))
+  return (data ?? []).map(rowToEvent)
+}
+
+function filterAdminEvents(
+  events: EventPublic[],
+  opts: {
+    q?: string
+    category?: string
+    statuses?: string[]
+    publication?: string
+  },
+): EventPublic[] {
+  let items = events
+  const needle = opts.q?.trim()
+  if (needle) {
+    items = items.filter(e =>
+      matchesSearch(e.title, needle)
+      || matchesSearch(e.cityName, needle)
+      || matchesSearch(e.description, needle)
+      || matchesSearch(e.locationName, needle)
+      || matchesSearch(e.slug, needle)
+      || (e.postalCode ? matchesSearch(e.postalCode, needle) : false),
+    )
+  }
+  if (opts.category) {
+    items = items.filter(e => e.category === opts.category)
+  }
+  if (opts.statuses?.length) {
+    const wanted = new Set(opts.statuses)
+    items = items.filter(e => wanted.has(e.displayStatus))
+  }
+  if (opts.publication) {
+    items = items.filter(e => e.publicationStatus === opts.publication)
+  }
+  return items
+}
+
+export async function listEventsAdmin(opts: {
+  page?: number
+  pageSize?: number
+  q?: string
+  category?: string
+  statuses?: string[]
+  publication?: string
+  /** Liste complète (ex. fusion) — sans compteurs */
+  all?: boolean
+}): Promise<{ items: EventPublic[], total: number, page: number, pageSize: number }> {
+  const records = await fetchAllEventRecordsAdmin()
+  const provisional = records.map(e =>
+    toPublic(e, { supports: 0, participations: 0 }, { maskLocation: false }),
+  )
+  const filtered = filterAdminEvents(provisional, opts)
+
+  if (opts.all) {
+    // Fusion admin : pas besoin des compteurs
+    return {
+      items: filtered,
+      total: filtered.length,
+      page: 1,
+      pageSize: filtered.length || 1,
+    }
+  }
+
+  const pageSize = Math.min(100, Math.max(1, opts.pageSize ?? 30))
+  const total = filtered.length
+  const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1)
+  const page = Math.min(Math.max(1, opts.page ?? 1), totalPages)
+  const start = (page - 1) * pageSize
+  const pageSlice = filtered.slice(start, start + pageSize)
+  const countsMap = await getEventCountsBatch(pageSlice.map(e => e.id))
+  const items = pageSlice.map(e => ({
+    ...e,
+    counts: countsMap.get(e.id) ?? { supports: 0, participations: 0 },
+  }))
+
+  return { items, total, page, pageSize }
+}
+
+/** Liste complète avec compteurs (dashboard admin). */
+export async function listAllEventsAdmin() {
+  const records = await fetchAllEventRecordsAdmin()
+  const countsMap = await getEventCountsBatch(records.map(e => e.id))
+  return records.map(e => toPublic(
+    e,
+    countsMap.get(e.id) ?? { supports: 0, participations: 0 },
+    { maskLocation: false },
+  ))
 }
 
 export async function getEventBySlug(slug: string): Promise<EventPublic | null> {

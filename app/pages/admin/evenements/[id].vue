@@ -36,7 +36,11 @@ const { data: event, error, refresh, pending } = await useFetch<EventAdminDetail
 
 const { data: allEvents } = await useFetch<{ items: EventPublic[] }>(
   '/api/admin/events',
-  { headers: cookieHeaders, credentials: 'include' },
+  {
+    headers: cookieHeaders,
+    credentials: 'include',
+    query: { all: '1' },
+  },
 )
 
 useSeoMeta({
