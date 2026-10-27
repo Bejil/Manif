@@ -8,7 +8,12 @@ import { badRequest, notFound } from '../utils/errors'
 import { rowToSubmission } from '../utils/mappers'
 import { getServiceSupabase, useMockDb } from '../utils/supabase'
 import { timezoneFromPostalOrCity } from '../utils/timezone'
-import { buildChangesRequestedEmail, buildVerificationEmail, sendEmail } from './email'
+import {
+  buildAdminPendingModerationEmail,
+  buildChangesRequestedEmail,
+  buildVerificationEmail,
+  sendEmail,
+} from './email'
 import { geocodeCityCenter, geocodeFrenchPlace } from './geocoding'
 import { getMockStore, newId, nowIso, seedMockStore } from './mock-store'
 import { buildDemoEvents } from './seed-data'
@@ -23,6 +28,36 @@ function maskEmail(email: string) {
   const [user, domain] = email.split('@')
   if (!domain) return '***'
   return `${user.slice(0, 2)}***@${domain}`
+}
+
+/** Notifie l’admin qu’une proposition entre (ou revient) en file de modération. */
+async function notifyAdminPendingModeration(opts: {
+  title: string
+  cityName: string
+  submissionId: string
+  kind: 'new' | 'updated'
+}) {
+  const config = useRuntimeConfig()
+  const to = String(config.adminEmail || '').trim()
+  if (!to) return
+  const email = buildAdminPendingModerationEmail({
+    siteUrl: String(config.public.siteUrl || ''),
+    title: opts.title,
+    cityName: opts.cityName,
+    submissionId: opts.submissionId,
+    kind: opts.kind,
+  })
+  try {
+    await sendEmail({
+      to,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+    })
+  }
+  catch (e) {
+    console.error('[email] notification admin modération échouée', e)
+  }
 }
 
 function sanitizeSubmission(s: EventSubmissionRecord, opts?: { includeEmail?: boolean }) {
@@ -169,6 +204,12 @@ export async function verifySubmission(token: string, pepper: string) {
     submission.verificationExpiresAt = null
     submission.moderationStatus = 'pending_moderation'
     submission.updatedAt = nowIso()
+    await notifyAdminPendingModeration({
+      title: submission.title,
+      cityName: submission.cityName,
+      submissionId: submission.id,
+      kind: 'new',
+    })
     return { alreadyVerified: false, id: submission.id }
   }
 
@@ -198,6 +239,12 @@ export async function verifySubmission(token: string, pepper: string) {
     moderation_status: 'pending_moderation',
     updated_at: nowIso(),
   }).eq('id', submission.id)
+  await notifyAdminPendingModeration({
+    title: submission.title,
+    cityName: submission.cityName,
+    submissionId: submission.id,
+    kind: 'new',
+  })
   return { alreadyVerified: false, id: submission.id }
 }
 
@@ -823,6 +870,13 @@ export async function updateSubmissionAfterChanges(input: {
       metadata: auditMeta,
     })
   }
+
+  await notifyAdminPendingModeration({
+    title: patch.title,
+    cityName: patch.cityName,
+    submissionId: submission.id,
+    kind: 'updated',
+  })
 
   return { ok: true, id: submission.id, changesCount: changes.length }
 }

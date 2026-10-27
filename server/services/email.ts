@@ -67,6 +67,46 @@ export function buildVerificationEmail(opts: {
   return { subject, text, html, link }
 }
 
+export function buildAdminPendingModerationEmail(opts: {
+  siteUrl: string
+  title: string
+  cityName: string
+  submissionId: string
+  kind: 'new' | 'updated'
+}) {
+  const base = opts.siteUrl.replace(/\/$/, '')
+  const link = `${base}/admin/propositions/${opts.submissionId}`
+  const isUpdate = opts.kind === 'updated'
+  const subject = isUpdate
+    ? `Proposition modifiée à valider — « ${opts.title} » — Manif'`
+    : `Nouvelle proposition à valider — « ${opts.title} » — Manif'`
+  const lead = isUpdate
+    ? 'Une proposition a été modifiée et revient en file de modération.'
+    : 'Une nouvelle proposition d’événement est à valider.'
+  const text = [
+    lead,
+    '',
+    `Titre : ${opts.title}`,
+    `Ville : ${opts.cityName}`,
+    '',
+    'Ouvrir dans l’admin :',
+    link,
+    '',
+    '— Manif\'',
+  ].join('\n')
+
+  const html = `
+    <p>${escapeHtml(lead)}</p>
+    <p>
+      <strong>${escapeHtml(opts.title)}</strong><br>
+      ${escapeHtml(opts.cityName)}
+    </p>
+    <p><a href="${link}">Ouvrir la proposition dans l’admin</a></p>
+  `
+
+  return { subject, text, html, link }
+}
+
 export function buildChangesRequestedEmail(opts: {
   siteUrl: string
   title: string
