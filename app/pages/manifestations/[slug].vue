@@ -92,7 +92,7 @@ async function submitReport() {
   <div v-if="event">
     <PageHero compact>
       <nav class="mb-6 text-sm text-[#FFFCF4]/60">
-        <NuxtLink to="/#agenda" class="font-medium hover:text-[#9C6EE8]">Agenda</NuxtLink>
+        <NuxtLink to="/manifestations" class="font-medium hover:text-[#9C6EE8]">Agenda</NuxtLink>
         <span aria-hidden="true"> / </span>
         <span class="text-[#FFFCF4]">{{ event.cityName }}</span>
       </nav>

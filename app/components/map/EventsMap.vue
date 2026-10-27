@@ -4,6 +4,10 @@ import type { EventMapPoint } from '#shared/types/event'
 const props = defineProps<{
   points: EventMapPoint[]
   selectedId?: string | null
+  /** Ids d’événements soutenus / participés (surlignage carte) */
+  engagedIds?: string[]
+  supportedIds?: string[]
+  participatingIds?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -15,6 +19,9 @@ const rootEl = ref<HTMLElement | null>(null)
 const mapEl = ref<HTMLElement | null>(null)
 const mapError = ref<string | null>(null)
 const mapReady = ref(false)
+
+const ENGAGED_PARTICIPATE = '#D1271C'
+const ENGAGED_SUPPORT = '#6735B6'
 
 type MaplibreModule = typeof import('maplibre-gl')
 let maplibregl: MaplibreModule | null = null
@@ -181,6 +188,13 @@ const statusColor: Record<string, string> = {
   postponed: '#805200',
 }
 
+function engagementFlag(id: string): 'participate' | 'support' | 'none' {
+  if (props.participatingIds?.includes(id)) return 'participate'
+  if (props.supportedIds?.includes(id)) return 'support'
+  if (props.engagedIds?.includes(id)) return 'support'
+  return 'none'
+}
+
 function toGeoJson(points: EventMapPoint[]) {
   return {
     type: 'FeatureCollection' as const,
@@ -192,6 +206,7 @@ function toGeoJson(points: EventMapPoint[]) {
         title: p.title,
         cityName: p.cityName,
         displayStatus: p.displayStatus,
+        mine: engagementFlag(p.id),
       },
       geometry: {
         type: 'Point' as const,
@@ -300,6 +315,8 @@ async function initMap() {
             'case',
             ['boolean', ['feature-state', 'selected'], false],
             '#6735B6',
+            ['==', ['get', 'mine'], 'participate'], ENGAGED_PARTICIPATE,
+            ['==', ['get', 'mine'], 'support'], ENGAGED_SUPPORT,
             [
               'match',
               ['get', 'displayStatus'],
@@ -314,11 +331,15 @@ async function initMap() {
             'case',
             ['boolean', ['feature-state', 'selected'], false],
             12,
+            ['!=', ['get', 'mine'], 'none'],
+            11,
             8,
           ],
           'circle-stroke-width': [
             'case',
             ['boolean', ['feature-state', 'selected'], false],
+            3,
+            ['!=', ['get', 'mine'], 'none'],
             3,
             2,
           ],
@@ -326,6 +347,8 @@ async function initMap() {
             'case',
             ['boolean', ['feature-state', 'selected'], false],
             '#FFFCF4',
+            ['!=', ['get', 'mine'], 'none'],
+            '#111111',
             '#ffffff',
           ],
         },
@@ -363,13 +386,19 @@ async function initMap() {
   }
 }
 
-watch(() => props.points, (points) => {
+function refreshGeoJson() {
   if (!map || !mapReady.value) return
   const source = map.getSource('events') as import('maplibre-gl').GeoJSONSource | undefined
-  source?.setData(toGeoJson(points))
-  // setData efface les feature-state → réappliquer
+  source?.setData(toGeoJson(props.points))
   nextTick(() => setSelectedFeatureState(props.selectedId, true))
-}, { deep: true })
+}
+
+watch(() => props.points, () => refreshGeoJson(), { deep: true })
+watch(
+  () => [props.engagedIds, props.supportedIds, props.participatingIds] as const,
+  () => refreshGeoJson(),
+  { deep: true },
+)
 
 watch(() => props.selectedId, (id) => {
   if (!map || !mapReady.value) return

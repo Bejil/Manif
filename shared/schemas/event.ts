@@ -43,9 +43,16 @@ export const eventListQuerySchema = z.object({
   dateTo: z.string().datetime({ offset: true }).optional().or(z.string().date().optional()),
   city: z.string().max(120).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+  pageSize: z.coerce.number().int().min(1).max(200).default(20),
   /** Si fourni, renvoie la page qui contient cet événement (ignore `page`). */
   focusId: z.string().uuid().optional(),
+  /** Filtre sur une liste d’ids (max 100), ex. engagements locaux. */
+  ids: z.string().max(4000).optional().transform((v) => {
+    if (!v?.trim()) return undefined
+    const list = v.split(',').map(s => s.trim()).filter(Boolean).slice(0, 100)
+    const uuids = list.filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+    return uuids.length ? uuids : undefined
+  }),
 })
 
 export const submissionCreateSchema = z.object({

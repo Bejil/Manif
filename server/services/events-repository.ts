@@ -160,6 +160,10 @@ function filterPublic(list: EventPublic[], query: EventListQuery): EventPublic[]
     const to = DateTime.fromISO(query.dateTo).endOf('day').toUTC()
     result = result.filter(e => e.startAt != null && DateTime.fromISO(e.startAt) <= to)
   }
+  if (query.ids?.length) {
+    const wanted = new Set(query.ids)
+    result = result.filter(e => wanted.has(e.id))
+  }
   return result.sort(sortEvents)
 }
 

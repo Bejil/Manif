@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { EventMapPoint, EventPublic } from '#shared/types/event'
+import type { EventMapPoint } from '#shared/types/event'
 import { FAQ_ITEMS, SEO } from '#shared/content/seo'
 import { useShare } from '../composables/useShare'
 
@@ -11,50 +11,15 @@ useSeoMeta({
   ogImage: '/brand/og-default.svg',
 })
 
-const q = ref('')
-const category = ref('')
-const statuses = ref<string[]>(['upcoming', 'ongoing'])
-const selectedId = ref<string | null>(null)
-const mobileView = ref<'list' | 'map'>('list')
-const page = ref(1)
-const pageSize = 20
-const debouncedQ = refDebounced(q, 300)
+const homeFilter = { statuses: 'upcoming,ongoing' }
 
-const filterParams = computed(() => ({
-  q: debouncedQ.value || undefined,
-  category: category.value || undefined,
-  statuses: statuses.value.join(',') || undefined,
-}))
-
-const listParams = computed(() => ({
-  ...filterParams.value,
-  page: page.value,
-  pageSize,
-}))
-
-watch(filterParams, () => {
-  page.value = 1
-  selectedId.value = null
+const { data: countData } = await useFetch<{ total: number }>('/api/events', {
+  query: { ...homeFilter, page: 1, pageSize: 1 },
+  transform: res => ({ total: res.total ?? 0 }),
 })
 
-const { data, pending, error, refresh } = await useFetch<{
-  items: EventPublic[]
-  total: number
-  page: number
-  pageSize: number
-}>('/api/events', {
-  query: listParams,
-  watch: [listParams],
-  transform: (res) => ({
-    ...res,
-    items: (res.items ?? []).map(slimEventForList),
-  }),
-})
-
-/** Carte hors payload SSR : beaucoup de points, chargée côté client. */
 const { data: mapData, pending: mapPending } = await useFetch<{ points: EventMapPoint[] }>('/api/events/map', {
-  query: filterParams,
-  watch: [filterParams],
+  query: homeFilter,
   server: false,
   lazy: true,
   default: () => ({ points: [] }),
@@ -73,96 +38,22 @@ const { data: mapData, pending: mapPending } = await useFetch<{ points: EventMap
   }),
 })
 
-const totalPages = computed(() => {
-  const total = data.value?.total ?? 0
-  return Math.max(1, Math.ceil(total / pageSize))
-})
+const eventTotal = computed(() => countData.value?.total ?? mapData.value?.points?.length ?? 0)
 
-function slimEventForList(event: EventPublic): EventPublic {
-  return {
-    ...event,
-    description: '',
-    imageUrls: [],
-    videoUrls: [],
-    sourceUrl: null,
-    organizerName: null,
-  }
+const previewId = ref<string | null>(null)
+const selectedMapId = ref<string | null>(null)
+const { supportedIds, participatingIds, engagedIds } = useMyEngagements()
+
+function onMapSelect(id: string) {
+  selectedMapId.value = id
+  previewId.value = id
 }
 
-const pendingScrollId = ref<string | null>(null)
-
-function scrollListToEvent(id: string) {
-  const el = document.getElementById(`event-${id}`)
-  const list = document.getElementById('agenda-list')
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }
-  else if (list) {
-    list.scrollTop = 0
-    list.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }
-}
-
-function goToPage(next: number) {
-  const max = totalPages.value
-  page.value = Math.min(max, Math.max(1, next))
-  nextTick(() => {
-    const list = document.getElementById('agenda-list')
-    if (list) {
-      list.scrollTop = 0
-      list.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    }
-  })
+function closePreview() {
+  previewId.value = null
 }
 
 const openFaq = ref<number | null>(0)
-
-async function onSelect(id: string) {
-  selectedId.value = id
-  if (import.meta.client && window.innerWidth < 768) {
-    mobileView.value = 'list'
-  }
-
-  if (data.value?.items?.some(e => e.id === id)) {
-    await nextTick()
-    scrollListToEvent(id)
-    return
-  }
-
-  // Point carte hors page courante → charger la bonne page puis scroller
-  try {
-    const res = await $fetch<{ page: number }>('/api/events', {
-      query: {
-        ...filterParams.value,
-        pageSize,
-        focusId: id,
-      },
-    })
-    pendingScrollId.value = id
-    if (page.value === res.page) {
-      pendingScrollId.value = null
-      await nextTick()
-      scrollListToEvent(id)
-    }
-    else {
-      page.value = res.page
-    }
-  }
-  catch {
-    // sélection carte seule
-  }
-}
-
-watch(
-  [() => data.value?.items, pending],
-  ([items, isPending]) => {
-    const id = pendingScrollId.value
-    if (!id || isPending) return
-    if (!items?.some(e => e.id === id)) return
-    pendingScrollId.value = null
-    nextTick(() => scrollListToEvent(id))
-  },
-)
 
 const { share } = useShare()
 const shareMsg = ref<string | null>(null)
@@ -176,16 +67,6 @@ async function shareSite() {
   })
   if (res.method === 'clipboard') shareMsg.value = 'Lien copié'
   setTimeout(() => { shareMsg.value = null }, 2500)
-}
-
-function refDebounced<T>(source: Ref<T>, ms: number) {
-  const debounced = ref(source.value) as Ref<T>
-  let t: ReturnType<typeof setTimeout> | undefined
-  watch(source, (v) => {
-    clearTimeout(t)
-    t = setTimeout(() => { debounced.value = v }, ms)
-  })
-  return debounced
 }
 
 const homeFaq = FAQ_ITEMS.slice(0, 5)
@@ -254,11 +135,11 @@ const engagementBlocks = [
           </p>
 
           <div class="mt-8 flex flex-wrap gap-3">
-            <a href="#agenda">
+            <NuxtLink to="/manifestations">
               <UiButton size="lg" class="!bg-[#FFFCF4] !text-[#111111] hover:!bg-white">
                 Explorer les manifestations
               </UiButton>
-            </a>
+            </NuxtLink>
             <NuxtLink to="/proposer">
               <UiButton
                 size="lg"
@@ -285,121 +166,37 @@ const engagementBlocks = [
       </div>
     </section>
 
-    <!-- AGENDA + CARTE -->
-    <section id="agenda" class="container-page scroll-mt-24 py-10 md:py-14">
-      <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">Agenda</p>
-          <h2 class="mf-display mf-h2 mt-2 text-[#111111]">
-            Près de chez vous.<br class="hidden sm:block">
-            Partout en France.
-          </h2>
-          <p class="mt-3 max-w-xl text-sm text-[#454545] sm:text-base">
-            Liste et carte synchronisées. Filtrez, sélectionnez, ouvrez la fiche.
-          </p>
-        </div>
-        <p v-if="data" class="chip bg-[#111111] text-[#FFFCF4]">
-          {{ data.total }} résultat{{ data.total > 1 ? 's' : '' }}
-          <span v-if="data.total > pageSize" class="opacity-70">
-            · p. {{ page }}/{{ totalPages }}
-          </span>
-        </p>
-      </div>
-
-      <EventFilters
-        v-model:q="q"
-        v-model:category="category"
-        v-model:statuses="statuses"
-      />
-
-      <div class="mt-4 flex gap-2 md:hidden">
-        <button
-          type="button"
-          class="flex-1 rounded-[4px] px-3 py-2.5 text-sm font-bold"
-          :class="mobileView === 'list' ? 'bg-[#111111] text-[#FFFCF4]' : 'border border-[#DDDAD3] bg-white text-[#111111]'"
-          @click="mobileView = 'list'"
-        >
-          Liste
-        </button>
-        <button
-          type="button"
-          class="flex-1 rounded-[4px] px-3 py-2.5 text-sm font-bold"
-          :class="mobileView === 'map' ? 'bg-[#111111] text-[#FFFCF4]' : 'border border-[#DDDAD3] bg-white text-[#111111]'"
-          @click="mobileView = 'map'"
-        >
-          Carte
-        </button>
-      </div>
-
-      <div id="carte-section" class="mt-5 grid scroll-mt-24 gap-5 lg:grid-cols-2 lg:gap-6">
-        <div
-          id="agenda-list"
-          class="-mx-2 max-h-[70vh] space-y-3 overflow-y-auto px-2 pb-3 pt-2"
-          :class="mobileView === 'map' ? 'hidden md:block' : ''"
-        >
-          <p v-if="pending" class="text-sm text-[#454545]">Chargement de l’agenda…</p>
-          <p v-else-if="error" class="text-sm text-[#AD291F]">
-            Impossible de charger les manifestations.
-            <button type="button" class="underline" @click="refresh()">Réessayer</button>
-          </p>
-          <EmptyState
-            v-else-if="!data?.items?.length"
-            title="Aucune manifestation pour ces filtres"
-            description="Élargissez votre recherche ou proposez un événement manquant."
-          >
-            <NuxtLink to="/proposer">
-              <UiButton size="sm">Proposer une manifestation</UiButton>
-            </NuxtLink>
-          </EmptyState>
-          <div
-            v-for="event in data?.items"
-            :id="`event-${event.id}`"
-            :key="event.id"
-          >
-            <EventCard
-              :event="event"
-              :selected="selectedId === event.id"
-              @select="onSelect(event.id)"
-            />
-          </div>
-
-          <nav
-            v-if="data && data.total > pageSize"
-            class="flex flex-wrap items-center justify-between gap-3 border-t border-[#DDDAD3] pt-4"
-            aria-label="Pagination de l’agenda"
-          >
-            <UiButton
-              size="sm"
-              variant="outline"
-              :disabled="page <= 1 || pending"
-              @click="goToPage(page - 1)"
-            >
-              Précédent
-            </UiButton>
-            <p class="text-sm font-semibold text-[#454545]">
-              Page {{ page }} sur {{ totalPages }}
+    <!-- COMPTEUR + CARTE -->
+    <section class="container-page py-10 md:py-14">
+      <div class="overflow-hidden rounded-[8px] border border-[#DDDAD3] bg-white shadow-soft">
+        <div class="flex flex-wrap items-end justify-between gap-4 border-b border-[#DDDAD3] px-5 py-5 md:px-6">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">En ce moment</p>
+            <h2 class="mf-display mf-h2 mt-2 text-[#111111]">
+              <span class="tabular-nums">{{ eventTotal }}</span>
+              manifestation{{ eventTotal > 1 ? 's' : '' }}
+            </h2>
+            <p class="mt-2 max-w-xl text-sm text-[#454545]">
+              À venir et en cours sur l’agenda. Ouvrez la carte interactive ou explorez la liste complète.
             </p>
-            <UiButton
-              size="sm"
-              variant="outline"
-              :disabled="page >= totalPages || pending"
-              @click="goToPage(page + 1)"
-            >
-              Suivant
+          </div>
+          <NuxtLink to="/manifestations">
+            <UiButton variant="red">
+              Voir l’agenda
             </UiButton>
-          </nav>
+          </NuxtLink>
         </div>
 
-        <div
-          class="h-[55vh] min-h-[320px] w-full lg:h-[70vh]"
-          :class="mobileView === 'list' ? 'hidden md:block' : ''"
-        >
+        <div class="relative h-[55vh] min-h-[320px] w-full lg:h-[65vh]">
           <ClientOnly>
             <div class="relative size-full">
               <EventsMap
                 :points="mapData?.points || []"
-                :selected-id="selectedId"
-                @select="onSelect"
+                :selected-id="selectedMapId"
+                :engaged-ids="engagedIds"
+                :supported-ids="supportedIds"
+                :participating-ids="participatingIds"
+                @select="onMapSelect"
               />
               <div
                 v-if="mapPending && !(mapData?.points?.length)"
@@ -407,9 +204,15 @@ const engagementBlocks = [
               >
                 Chargement de la carte…
               </div>
+              <div
+                v-if="previewId"
+                class="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex justify-center md:inset-x-auto md:bottom-4 md:left-4 md:justify-start"
+              >
+                <EventPreviewPopover :event-id="previewId" @close="closePreview" />
+              </div>
             </div>
             <template #fallback>
-              <div class="map-shell flex items-center justify-center text-sm text-[#454545]">
+              <div class="map-shell flex size-full items-center justify-center text-sm text-[#454545]">
                 Chargement de la carte…
               </div>
             </template>

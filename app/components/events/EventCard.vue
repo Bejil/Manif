@@ -20,8 +20,11 @@ const props = withDefaults(defineProps<{
 
 defineEmits<{ select: [] }>()
 const { formatDate, categoryLabel } = useEventFormat()
+const { isSupported, isParticipating } = useMyEngagements()
 
 const href = computed(() => props.to ?? `/manifestations/${props.event.slug}`)
+const iSupport = computed(() => isSupported(props.event.id))
+const iParticipate = computed(() => isParticipating(props.event.id))
 
 /** Bordure gauche : signature par statut (hors sélection) */
 const shell: Record<DisplayEventStatus, string> = {
@@ -75,6 +78,22 @@ const dateLabel = computed(() => {
     >
       <div class="flex flex-wrap items-center gap-2">
         <StatusBadge :status="event.displayStatus" />
+        <span
+          v-if="iSupport"
+          class="chip inline-flex items-center gap-1"
+          :class="selected ? 'bg-[#9C6EE8] text-[#111111]' : 'bg-[#F0E8FC] text-[#4D257D]'"
+        >
+          <BrandIcon name="support" :size="12" />
+          Je soutiens
+        </span>
+        <span
+          v-if="iParticipate"
+          class="chip inline-flex items-center gap-1"
+          :class="selected ? 'bg-[#D1271C] text-[#FFFCF4]' : 'bg-[#FDEDEB] text-[#97251B]'"
+        >
+          <BrandIcon name="participate" :size="12" />
+          Je participe
+        </span>
         <span
           v-if="!event.startAt"
           class="chip bg-[#805200] text-[#FFFCF4]"

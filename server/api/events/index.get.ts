@@ -17,5 +17,6 @@ export default defineEventHandler(async (event) => {
     ...parsed.data,
     statuses,
     category: parsed.data.category as undefined,
+    ids: parsed.data.ids,
   })
 })

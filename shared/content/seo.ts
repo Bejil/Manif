@@ -8,6 +8,16 @@ export const SEO = {
     description:
       "Consultez la carte des manifestations en France, trouvez les informations pratiques et déclarez votre soutien ou votre participation, sans créer de compte.",
   },
+  manifestations: {
+    title: "Manifestations — Agenda et carte | Manif'",
+    description:
+      "Recherchez et filtrez les manifestations en France : liste synchronisée avec la carte, informations pratiques, soutien et participation sans compte.",
+  },
+  mesManifestations: {
+    title: "Mes manifestations — Soutiens et participations | Manif'",
+    description:
+      "Retrouvez sur cet appareil les manifestations que vous soutenez ou auxquelles vous participez. Filtrez et triez sans compte.",
+  },
   proposer: {
     title: "Proposer une manifestation — Manif'",
     description:

@@ -2,7 +2,8 @@
 const open = ref(false)
 
 const links = [
-  { to: '/#agenda', label: 'Manifestations' },
+  { to: '/manifestations', label: 'Manifestations' },
+  { to: '/mes-manifestations', label: 'Mes manifestations' },
   { to: '/guide', label: 'Guide' },
   { to: '/faq', label: 'FAQ' },
   { to: '/comptage', label: 'Méthodologie' },

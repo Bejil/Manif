@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
 
   const staticPages = [
     '',
+    '/manifestations',
     '/proposer',
     '/guide',
     '/faq',

@@ -18,7 +18,8 @@ const year = new Date().getFullYear()
       <div>
         <p class="text-xs font-bold uppercase tracking-[0.14em] text-[#9C6EE8]">Découvrir</p>
         <ul class="mt-4 space-y-2.5 text-sm font-medium">
-          <li><NuxtLink to="/#agenda" class="hover:text-[#9C6EE8]">Manifestations</NuxtLink></li>
+          <li><NuxtLink to="/manifestations" class="hover:text-[#9C6EE8]">Manifestations</NuxtLink></li>
+          <li><NuxtLink to="/mes-manifestations" class="hover:text-[#9C6EE8]">Mes manifestations</NuxtLink></li>
           <li><NuxtLink to="/proposer" class="hover:text-[#9C6EE8]">Proposer</NuxtLink></li>
           <li><NuxtLink to="/guide" class="hover:text-[#9C6EE8]">Guide</NuxtLink></li>
           <li><NuxtLink to="/faq" class="hover:text-[#9C6EE8]">FAQ</NuxtLink></li>

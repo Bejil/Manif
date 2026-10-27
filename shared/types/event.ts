@@ -89,5 +89,7 @@ export interface EventListQuery {
   pageSize?: number
   /** Page contenant cet id (sélection carte → liste). */
   focusId?: string
+  /** Sous-ensemble d’événements (ex. engagements locaux). */
+  ids?: string[]
   bbox?: [number, number, number, number]
 }

@@ -57,6 +57,7 @@ export function useParticipationToken(eventId: string) {
   function setLocalState(state: EngagementState) {
     if (!import.meta.client) return
     localStorage.setItem(`${storageKey}:state`, JSON.stringify(state))
+    rememberEngagement(eventId, state)
   }
 
   return { getOrCreateToken, getLocalState, setLocalState }
