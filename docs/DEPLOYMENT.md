@@ -63,17 +63,16 @@ Nuxt 4 / Nitro est détecté automatiquement : **pas de `vercel.json` requis**. 
 
 ### Import quotidien (Cron)
 
-Nitro `scheduledTasks` génère un **Vercel Cron** au build : tous les jours à **05:00 UTC** (`imports:daily`).
+Déclaré dans `vercel.json` : **GET `/api/cron/imports`** tous les jours à **05:00 UTC**.
 
-1. Dans Vercel → Settings → Environment Variables, ajouter :
-   - `CRON_SECRET` — chaîne aléatoire ≥ 16 caractères (**obligatoire** : sinon le handler cron n’est pas authentifié)
-   - optionnel : `IMPORT_CRON_MODE=published` (ou `draft`)
-   - optionnel : `IMPORT_CRON_SOURCES=ami,demosphere,manifs,manifradar,mobilizon_xr`
-   - optionnel : `IMPORT_CRON_ENABLED=false` pour couper sans retirer la schedule
-2. Redeploy
-3. Vérifier Settings → Cron Jobs : chemin généré par Nitro, schedule `0 5 * * *`
+1. Settings → Environment Variables → `CRON_SECRET` (chaîne ≥ 16 car., Production)
+2. Commit + push de `vercel.json` (ou Redeploy après merge)
+3. Settings → Cron Jobs : tu dois voir  
+   ` /api/cron/imports ` · `0 5 * * *`  
+   (plus le guide « Get Started »)
 
-L’import peut s’enchaîner via `/api/cron/imports-continue` si une invocation atteint le budget temps (~4 min, `maxDuration` 300 s). Suivi dans `/admin/imports`.
+Optionnel : `IMPORT_CRON_MODE`, `IMPORT_CRON_SOURCES`, `IMPORT_CRON_ENABLED=false`.  
+Suivi : `/admin/imports`.
 
 ### 1. Mettre le code sur GitHub
 

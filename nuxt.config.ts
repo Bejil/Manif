@@ -147,10 +147,7 @@ export default defineNuxtConfig({
       openAPI: false,
       tasks: true,
     },
-    /** 05:00 UTC ≈ 06h/07h Europe/Paris — généré en cron Vercel au build. */
-    scheduledTasks: {
-      '0 5 * * *': ['imports:daily'],
-    },
+    /** Cron déclaré dans vercel.json → GET /api/cron/imports */
     vercel: {
       functions: {
         maxDuration: 300,
