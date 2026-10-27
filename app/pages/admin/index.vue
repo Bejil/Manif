@@ -11,7 +11,7 @@ const { data: me, refresh: refreshMe } = await useFetch<{ authenticated: boolean
   { headers: cookieHeaders, credentials: 'include' },
 )
 
-const email = ref('contact@manif.info')
+const email = ref('')
 const password = ref('')
 const loginError = ref<string | null>(null)
 

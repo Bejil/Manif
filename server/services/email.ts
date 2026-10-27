@@ -107,6 +107,104 @@ export function buildAdminPendingModerationEmail(opts: {
   return { subject, text, html, link }
 }
 
+export function buildAdminNewReportEmail(opts: {
+  siteUrl: string
+  reportId: string
+  eventTitle: string
+  eventSlug: string
+  reasonLabel: string
+  details?: string
+}) {
+  const base = opts.siteUrl.replace(/\/$/, '')
+  const link = `${base}/admin/signalements/${opts.reportId}`
+  const eventLink = `${base}/manifestations/${opts.eventSlug}`
+  const subject = `Nouveau signalement — « ${opts.eventTitle} » — Manif'`
+  const details = (opts.details || '').trim()
+  const text = [
+    'Un signalement vient d’être déposé sur Manif\'.',
+    '',
+    `Événement : ${opts.eventTitle}`,
+    `Motif : ${opts.reasonLabel}`,
+    ...(details ? ['', 'Précisions :', details] : []),
+    '',
+    'Ouvrir dans l’admin :',
+    link,
+    '',
+    'Fiche publique :',
+    eventLink,
+    '',
+    '— Manif\'',
+  ].join('\n')
+
+  const html = `
+    <p>Un signalement vient d’être déposé sur Manif'.</p>
+    <p>
+      <strong>${escapeHtml(opts.eventTitle)}</strong><br>
+      Motif : ${escapeHtml(opts.reasonLabel)}
+    </p>
+    ${details
+      ? `<p>Précisions :</p><blockquote style="border-left:3px solid #AD291F;padding-left:12px;color:#454545;white-space:pre-wrap;">${escapeHtml(details)}</blockquote>`
+      : ''}
+    <p><a href="${link}">Ouvrir le signalement dans l’admin</a></p>
+    <p><a href="${eventLink}">Voir la fiche publique</a></p>
+  `
+
+  return { subject, text, html, link }
+}
+
+export function buildSubmissionApprovedEmail(opts: {
+  siteUrl: string
+  title: string
+  eventSlug: string
+}) {
+  const base = opts.siteUrl.replace(/\/$/, '')
+  const link = `${base}/manifestations/${opts.eventSlug}`
+  const subject = `Proposition publiée — « ${opts.title} » — Manif'`
+  const text = [
+    `Bonne nouvelle : votre proposition « ${opts.title} » a été validée et publiée sur Manif'.`,
+    '',
+    'Voir la fiche :',
+    link,
+    '',
+    '— Manif\' (plateforme citoyenne indépendante)',
+  ].join('\n')
+
+  const html = `
+    <p>Bonne nouvelle : votre proposition <strong>${escapeHtml(opts.title)}</strong> a été validée et publiée sur Manif'.</p>
+    <p><a href="${link}">Voir la fiche publique</a></p>
+  `
+
+  return { subject, text, html, link }
+}
+
+export function buildSubmissionRejectedEmail(opts: {
+  title: string
+  reason?: string | null
+}) {
+  const subject = `Proposition non retenue — « ${opts.title} » — Manif'`
+  const reason = (opts.reason || '').trim()
+  const text = [
+    `Votre proposition « ${opts.title} » n’a pas été retenue pour publication sur Manif'.`,
+    '',
+    ...(reason
+      ? ['Motif :', reason, '']
+      : []),
+    'Vous pouvez proposer une autre manifestation via le formulaire Proposer.',
+    '',
+    '— Manif\' (plateforme citoyenne indépendante)',
+  ].join('\n')
+
+  const html = `
+    <p>Votre proposition <strong>${escapeHtml(opts.title)}</strong> n’a pas été retenue pour publication sur Manif'.</p>
+    ${reason
+      ? `<p>Motif :</p><blockquote style="border-left:3px solid #AD291F;padding-left:12px;color:#454545;white-space:pre-wrap;">${escapeHtml(reason)}</blockquote>`
+      : ''}
+    <p>Vous pouvez proposer une autre manifestation via le formulaire Proposer.</p>
+  `
+
+  return { subject, text, html }
+}
+
 export function buildChangesRequestedEmail(opts: {
   siteUrl: string
   title: string

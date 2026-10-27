@@ -444,6 +444,7 @@ async function mergeIntoTarget() {
       <p v-if="saveError" class="mb-4 text-sm text-[#AD291F]" role="alert">{{ saveError }}</p>
 
       <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div class="space-y-6">
         <form class="surface-card space-y-5 p-5 md:p-6" @submit.prevent="saveEdit">
           <div class="grid gap-4 sm:grid-cols-2">
             <UiInput id="edit-title" v-model="form.title" label="Titre" class="sm:col-span-2" required />
@@ -588,11 +589,13 @@ async function mergeIntoTarget() {
           </div>
         </form>
 
+        <AdminHistoryFeed
+          title="Historique"
+          :items="event.history || []"
+        />
+        </div>
+
         <aside class="space-y-4 lg:sticky lg:top-24">
-          <AdminHistoryFeed
-            title="Historique"
-            :items="event.history || []"
-          />
           <div class="rounded-[8px] border border-[#DDDAD3] bg-white p-4">
             <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">Actions</p>
 

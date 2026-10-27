@@ -1,4 +1,4 @@
-import type { ReportReasonId } from '#shared/constants/statuses'
+import { REPORT_REASONS, type ReportReasonId } from '#shared/constants/statuses'
 import { computeDisplayStatus } from '#shared/utils/event-time'
 import { getServiceSupabase, useMockDb } from '../utils/supabase'
 import { getMockStore, newId, nowIso, seedMockStore } from './mock-store'
@@ -6,6 +6,7 @@ import { buildDemoEvents } from './seed-data'
 import type { ReportRecord } from './mock-store'
 import { getEventById, toPublic } from './events-repository'
 import { getEventCounts } from './engagements-repository'
+import { buildAdminNewReportEmail, sendEmail } from './email'
 
 function ensureSeeded() {
   if (useMockDb()) seedMockStore(buildDemoEvents())
@@ -46,6 +47,35 @@ async function attachEvent(report: ReportRecord): Promise<ReportWithEvent> {
   }
 }
 
+async function notifyAdminNewReport(report: ReportRecord) {
+  const config = useRuntimeConfig()
+  const to = String(config.adminEmail || '').trim()
+  if (!to) return
+
+  const event = await getEventById(report.eventId)
+  const reasonLabel = REPORT_REASONS.find(r => r.id === report.reason)?.label || report.reason
+  const email = buildAdminNewReportEmail({
+    siteUrl: String(config.public.siteUrl || ''),
+    reportId: report.id,
+    eventTitle: event?.title || 'Événement',
+    eventSlug: event?.slug || report.eventId,
+    reasonLabel,
+    details: report.details,
+  })
+
+  try {
+    await sendEmail({
+      to,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+    })
+  }
+  catch (e) {
+    console.error('[email] notification admin signalement échouée', e)
+  }
+}
+
 export async function createReport(input: {
   eventId: string
   reason: ReportReasonId
@@ -65,6 +95,7 @@ export async function createReport(input: {
 
   if (useMockDb()) {
     getMockStore().reports.push(report)
+    await notifyAdminNewReport(report)
     return report
   }
 
@@ -77,7 +108,7 @@ export async function createReport(input: {
     status: report.status,
   }).select('*').single()
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-  return {
+  const saved = {
     id: data.id,
     eventId: data.event_id,
     reason: data.reason,
@@ -87,6 +118,8 @@ export async function createReport(input: {
     resolvedAt: data.resolved_at,
     adminNote: data.admin_note,
   } as ReportRecord
+  await notifyAdminNewReport(saved)
+  return saved
 }
 
 export async function listReports(): Promise<ReportWithEvent[]> {

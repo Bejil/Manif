@@ -11,6 +11,8 @@ import { timezoneFromPostalOrCity } from '../utils/timezone'
 import {
   buildAdminPendingModerationEmail,
   buildChangesRequestedEmail,
+  buildSubmissionApprovedEmail,
+  buildSubmissionRejectedEmail,
   buildVerificationEmail,
   sendEmail,
 } from './email'
@@ -57,6 +59,49 @@ async function notifyAdminPendingModeration(opts: {
   }
   catch (e) {
     console.error('[email] notification admin modération échouée', e)
+  }
+}
+
+async function notifyProposerSubmissionDecision(opts: {
+  to: string
+  title: string
+  kind: 'approved' | 'rejected'
+  eventSlug?: string
+  reason?: string | null
+}) {
+  const to = opts.to.trim().toLowerCase()
+  if (!to) return
+  const config = useRuntimeConfig()
+  try {
+    if (opts.kind === 'approved' && opts.eventSlug) {
+      const email = buildSubmissionApprovedEmail({
+        siteUrl: String(config.public.siteUrl || ''),
+        title: opts.title,
+        eventSlug: opts.eventSlug,
+      })
+      await sendEmail({
+        to,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      })
+      return
+    }
+    if (opts.kind === 'rejected') {
+      const email = buildSubmissionRejectedEmail({
+        title: opts.title,
+        reason: opts.reason,
+      })
+      await sendEmail({
+        to,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      })
+    }
+  }
+  catch (e) {
+    console.error('[email] notification proposant (décision) échouée', e)
   }
 }
 
@@ -481,6 +526,13 @@ export async function approveSubmission(id: string, actorId: string) {
     })
   }
 
+  await notifyProposerSubmissionDecision({
+    to: submission.proposerEmail,
+    title: submission.title,
+    kind: 'approved',
+    eventSlug: event.slug,
+  })
+
   return { event }
 }
 
@@ -525,6 +577,14 @@ export async function rejectSubmission(id: string, actorId: string, reason?: str
       metadata: { reason },
     })
   }
+
+  await notifyProposerSubmissionDecision({
+    to: submission.proposerEmail,
+    title: submission.title,
+    kind: 'rejected',
+    reason: reason ?? null,
+  })
+
   return { ok: true }
 }
 
