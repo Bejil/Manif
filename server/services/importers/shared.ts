@@ -116,6 +116,9 @@ export function toIsoZ(d: Date): string {
   return d.toISOString().replace(/\.\d{3}Z$/, 'Z')
 }
 
+/** Timeout HTTP imports — 45s bloquait trop longtemps les lots Démosphère / AMI. */
+const IMPORT_FETCH_TIMEOUT_MS = 12_000
+
 export async function fetchText(url: string, init?: RequestInit): Promise<string> {
   const res = await fetch(url, {
     ...init,
@@ -124,7 +127,7 @@ export async function fetchText(url: string, init?: RequestInit): Promise<string
       Accept: '*/*',
       ...(init?.headers || {}),
     },
-    signal: AbortSignal.timeout(45000),
+    signal: init?.signal ?? AbortSignal.timeout(IMPORT_FETCH_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`)
   return res.text()
@@ -138,7 +141,7 @@ export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> 
       Accept: 'application/json',
       ...(init?.headers || {}),
     },
-    signal: AbortSignal.timeout(45000),
+    signal: init?.signal ?? AbortSignal.timeout(IMPORT_FETCH_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`)
   return res.json() as Promise<T>

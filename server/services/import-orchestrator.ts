@@ -8,6 +8,7 @@ import type {
   ImportRunStats,
 } from '#shared/types/import'
 import { createEventSlug, ensureUniqueSlug } from '#shared/utils/slug'
+import { diffImportUpdate } from '#shared/utils/import-diff'
 import { timezoneFromPostalOrCity } from '../utils/timezone'
 import { geocodeFrenchPlace } from './geocoding'
 import { buildImportWorkUnits } from './importers'
@@ -213,8 +214,8 @@ export async function continueImportRun(runId: string): Promise<{
       }
     }
 
-    // Scrape terminé → préparer (match + géocode)
-    await updateImportRun(runId, {
+    // Scrape terminé → laisser l’appelant enchaîner (pas de récursion : évite les timeouts)
+    const scraped = await updateImportRun(runId, {
       status: 'scraped',
       progress: {
         ...run.progress,
@@ -225,7 +226,7 @@ export async function continueImportRun(runId: string): Promise<{
         percent: PHASE_SCRAPE,
       },
     })
-    return continueImportRun(runId)
+    return { run: scraped, done: false, step: 'scrape-done' }
   }
 
   if (run.status === 'scraped') {
@@ -235,7 +236,7 @@ export async function continueImportRun(runId: string): Promise<{
       return { run: fresh, done: false, step: 'prepare' }
     }
 
-    await updateImportRun(runId, {
+    const applying = await updateImportRun(runId, {
       status: 'applying',
       progress: {
         ...run.progress,
@@ -244,7 +245,7 @@ export async function continueImportRun(runId: string): Promise<{
         percent: PHASE_SCRAPE + PHASE_PREPARE,
       },
     })
-    return continueImportRun(runId)
+    return { run: applying, done: false, step: 'prepare-done' }
   }
 
   if (run.status === 'applying') {
@@ -253,36 +254,16 @@ export async function continueImportRun(runId: string): Promise<{
       const fresh = (await getImportRun(runId))!
       return { run: fresh, done: false, step: 'apply' }
     }
-    // Garde-fou : ne jamais clôturer s’il reste des candidats à écrire
+    // Garde-fou : candidats encore « ready » alors que le lot est vide → erreur, pas de boucle
     const stillPending = await countCandidatesByStatuses(runId, ['ready', 'duplicate'])
     if (stillPending > 0) {
-      const fresh = await updateImportRun(runId, {
-        status: 'applying',
-        finishedAt: null,
-        progress: {
-          ...run.progress,
-          message: `Écriture… ${stillPending} candidat(s) restant(s)`,
-          phase: 'apply',
-        },
-      })
-      return { run: fresh, done: false, step: 'apply-retry' }
+      await failReadyCandidates(
+        runId,
+        'Écriture bloquée après apply — candidat marqué en erreur',
+      )
     }
-    // Resync stats depuis la DB (évite « 1 prêt » fantôme après écriture)
     const live = await getImportRun(runId)
     const recounted = await recountImportWriteStats(runId)
-    if (recounted.ready + recounted.duplicates > 0) {
-      const fresh = await updateImportRun(runId, {
-        status: 'applying',
-        finishedAt: null,
-        stats: { ...(live?.stats || run.stats), ...recounted },
-        progress: {
-          ...run.progress,
-          message: `Écriture… ${recounted.ready + recounted.duplicates} candidat(s) restant(s)`,
-          phase: 'apply',
-        },
-      })
-      return { run: fresh, done: false, step: 'apply-retry' }
-    }
     const next = await updateImportRun(runId, {
       status: 'completed',
       finishedAt: nowIso(),
@@ -301,7 +282,8 @@ export async function continueImportRun(runId: string): Promise<{
 }
 
 async function prepareCandidatesBatch(runId: string, doGeocode: boolean) {
-  const pendingOnly = await getPendingCandidates(runId, 25)
+  // Lots plus petits si géocode (BAN) pour rester sous le budget Vercel
+  const pendingOnly = await getPendingCandidates(runId, doGeocode ? 12 : 30)
   if (!pendingOnly.length) return { exhausted: true }
 
   const run = (await getImportRun(runId))!
@@ -330,7 +312,6 @@ async function prepareCandidatesBatch(runId: string, doGeocode: boolean) {
           city = geo.cityName || city
           tz = geo.timezone || tz
         }
-        await new Promise(r => setTimeout(r, 40))
       }
 
       const match = await findImportMatch({
@@ -463,6 +444,7 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
           continue
         }
         const reason = matchReason || 'source_url'
+        const nextSourceUrl = reason === 'source_url' ? c.sourceUrl : (existing.sourceUrl || c.sourceUrl)
         const patched: EventRecord = {
           ...existing,
           title: c.title,
@@ -479,20 +461,59 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
           organizerName: c.organizerName,
           timezone: c.timezone || existing.timezone,
           // Match titre : on conserve l’URL déjà en base pour ne pas casser le dédoublonnage source
-          sourceUrl: reason === 'source_url' ? c.sourceUrl : (existing.sourceUrl || c.sourceUrl),
+          sourceUrl: nextSourceUrl,
           updatedAt: nowIso(),
           publicationStatus: publicationStatus === 'published' ? 'published' : existing.publicationStatus,
           publishedAt: publicationStatus === 'published'
             ? (existing.publishedAt || nowIso())
             : existing.publishedAt,
         }
+        const changes = diffImportUpdate({
+          before: {
+            title: existing.title,
+            description: existing.description,
+            category: existing.category,
+            cityName: existing.cityName,
+            postalCode: existing.postalCode,
+            locationName: existing.locationName,
+            latitude: existing.latitude,
+            longitude: existing.longitude,
+            startAt: existing.startAt,
+            endAt: existing.endAt,
+            endIsEstimated: existing.endIsEstimated,
+            organizerName: existing.organizerName,
+            timezone: existing.timezone,
+            sourceUrl: existing.sourceUrl,
+          },
+          after: {
+            title: patched.title,
+            description: patched.description,
+            category: patched.category,
+            cityName: patched.cityName,
+            postalCode: patched.postalCode,
+            locationName: patched.locationName,
+            latitude: patched.latitude,
+            longitude: patched.longitude,
+            startAt: patched.startAt,
+            endAt: patched.endAt,
+            endIsEstimated: patched.endIsEstimated,
+            organizerName: patched.organizerName,
+            timezone: patched.timezone,
+            sourceUrl: patched.sourceUrl,
+          },
+        })
         await upsertEvent(patched)
         // matchEventId renseigné → candidat « maj » (exclu de la liste admin « nouveaux »)
         await updateCandidate(c.id, {
           status: 'applied',
           matchEventId: existing.id,
           appliedEventId: existing.id,
-          payload: { ...c.payload, applyKind: 'updated', matchReason: reason },
+          payload: {
+            ...c.payload,
+            applyKind: 'updated',
+            matchReason: reason,
+            changes,
+          },
         })
         updated++
         continue

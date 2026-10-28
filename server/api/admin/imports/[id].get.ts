@@ -18,13 +18,19 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const page = Math.max(1, Number(query.page) || 1)
   const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 30))
-  // Par défaut : seulement les nouveaux (créations). Les maj sont appliquées
-  // automatiquement et n’apparaissent pas dans la liste admin.
-  const onlyNew = query.onlyNew === '0' || query.onlyNew === 'false' ? false : true
+
+  const kindRaw = typeof query.kind === 'string' ? query.kind : ''
+  const kind = kindRaw === 'updated' || kindRaw === 'all' ? kindRaw : 'new'
+
+  // Compat : onlyNew=0 → all
+  const legacyAll = query.onlyNew === '0' || query.onlyNew === 'false'
+  const effectiveKind = legacyAll ? 'all' : kind
+
   const candidates = await listCandidates(id, {
     limit: pageSize,
     offset: (page - 1) * pageSize,
-    onlyNew,
+    onlyNew: effectiveKind === 'new',
+    onlyUpdated: effectiveKind === 'updated',
   })
 
   const items = await Promise.all(candidates.items.map(async (c) => {
@@ -44,5 +50,5 @@ export default defineEventHandler(async (event) => {
     }
   }))
 
-  return { run, candidates: { ...candidates, items } }
+  return { run, candidates: { ...candidates, items }, kind: effectiveKind }
 })

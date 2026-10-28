@@ -23,6 +23,10 @@ export async function scrapeAmi(options: {
   const minTs = Date.now() - 24 * 3600 * 1000
   const maxTs = Date.now() + 200 * 24 * 3600 * 1000
 
+  /** Plafond de pages détail — sinon un run AMI peut durer des dizaines de minutes. */
+  const maxDetailFetches = 20
+  let detailFetches = 0
+
   for (const item of items) {
     if (out.length >= max) break
     const title = item.title.trim()
@@ -31,12 +35,14 @@ export async function scrapeAmi(options: {
     let desc = item.description
     let start = parseFrenchDate(`${title} ${desc}`)
     if (!start) {
+      if (detailFetches >= maxDetailFetches) continue
       try {
+        detailFetches++
         const page = await fetchText(link)
         const body = stripHtml(page)
         start = parseFrenchDate(body)
         if (!desc) desc = body.slice(0, 900)
-        await new Promise(r => setTimeout(r, 80))
+        await new Promise(r => setTimeout(r, 40))
       }
       catch {
         continue

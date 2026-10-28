@@ -57,12 +57,13 @@ export function buildImportWorkUnits(
       })
     }
     else if (source === 'demosphere') {
-      const batches = demosphereBatches(5)
+      // Lots de 8 (parallèle interne ×3) → moins d’unités scrape, runs plus courts
+      const batches = demosphereBatches(8)
       batches.forEach((hosts, i) => {
         units.push({
           id: `demosphere:${i}`,
           source: 'demosphere',
-          label: `Démosphère lot ${i + 1}/${batches.length} (${hosts.join(', ')})`,
+          label: `Démosphère lot ${i + 1}/${batches.length}`,
           run: () => scrapeDemosphereHosts(hosts, opts),
         })
       })

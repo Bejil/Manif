@@ -122,7 +122,10 @@ export async function runImportUntilBudget(opts: {
   return { runId, done, steps, lastStep, reason }
 }
 
-/** Relance HTTP sécurisée si le budget est dépassé (profondeur limitée). */
+/**
+ * Relance HTTP si le budget est dépassé.
+ * Fire-and-forget : ne PAS attendre la réponse (sinon hop N attend hop N+1… jusqu’à timeout).
+ */
 export function chainImportContinue(opts: {
   runId: string
   siteUrl: string
@@ -142,12 +145,27 @@ export function chainImportContinue(opts: {
   }
 
   const url = `${base}/api/cron/imports-continue?runId=${encodeURIComponent(opts.runId)}&hop=${opts.hop + 1}`
-  const promise = $fetch(url, {
+  // fetch natif + discard body : démarre l’invocation sans bloquer sur sa durée
+  const kick = fetch(url, {
+    method: 'GET',
     headers: { Authorization: `Bearer ${opts.cronSecret}` },
-  }).catch((err: unknown) => {
-    console.error('[cron:imports] enchaînement échoué', err)
   })
+    .then(async (res) => {
+      // Consomme un peu le body pour laisser partir la requête, sans lire tout le JSON long
+      try { await res.arrayBuffer() }
+      catch { /* ignore */ }
+      if (!res.ok) {
+        console.error('[cron:imports] enchaînement HTTP', res.status)
+      }
+    })
+    .catch((err: unknown) => {
+      console.error('[cron:imports] enchaînement échoué', err)
+    })
 
-  if (opts.waitUntil) opts.waitUntil(promise)
-  else void promise
+  // Sur Vercel : garder la fonction vivante juste le temps d’émettre la requête
+  if (opts.waitUntil) opts.waitUntil(Promise.race([
+    kick,
+    new Promise(resolve => setTimeout(resolve, 3_000)),
+  ]))
+  else void kick
 }

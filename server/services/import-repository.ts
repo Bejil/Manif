@@ -293,6 +293,8 @@ export async function listCandidates(
     status?: ImportCandidateStatus
     /** Uniquement les créations (pas les maj auto d’existants) */
     onlyNew?: boolean
+    /** Uniquement les mises à jour d’événements déjà connus */
+    onlyUpdated?: boolean
     limit?: number
     offset?: number
   } = {},
@@ -310,6 +312,12 @@ export async function listCandidates(
         && c.payload?.applyKind !== 'updated',
       )
     }
+    if (opts.onlyUpdated) {
+      items = items.filter(c =>
+        c.status === 'applied'
+        && (Boolean(c.matchEventId) || c.payload?.applyKind === 'updated'),
+      )
+    }
     const total = items.length
     return { items: items.slice(offset, offset + limit), total }
   }
@@ -324,6 +332,9 @@ export async function listCandidates(
   if (opts.onlyNew) {
     // Créations : applied sans match (les maj portent match_event_id)
     q = q.eq('status', 'applied').is('match_event_id', null)
+  }
+  if (opts.onlyUpdated) {
+    q = q.eq('status', 'applied').not('match_event_id', 'is', null)
   }
   const { data, error, count } = await q
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })

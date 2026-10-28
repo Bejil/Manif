@@ -7,6 +7,7 @@ import {
 import type { ImportModeId, ImportSourceId } from '#shared/constants/import-sources'
 import type { ImportCandidateRecord, ImportRunRecord } from '#shared/types/import'
 import type { PublicationStatus } from '#shared/constants/statuses'
+import { readImportChanges, type ImportFieldChange } from '#shared/utils/import-diff'
 
 definePageMeta({ layout: 'admin' })
 useSeoMeta({ title: 'Imports multi-sources — Admin', robots: 'noindex' })
@@ -47,10 +48,13 @@ const activeRun = computed(() =>
 )
 
 const candidatesPage = ref(1)
+/** Liste affichée : créations ou mises à jour. */
+const candidatesKind = ref<'new' | 'updated'>('new')
 
 const candidatesQuery = computed(() => ({
   page: candidatesPage.value,
   pageSize: 30,
+  kind: candidatesKind.value,
 }))
 
 const RUN_FINISHED = new Set(['completed', 'cancelled', 'failed'])
@@ -96,7 +100,23 @@ const { data: detailData, refresh: refreshDetail, pending: detailPending } = awa
 
 watch(activeRunId, () => {
   candidatesPage.value = 1
+  candidatesKind.value = 'new'
 })
+
+watch(candidatesKind, () => {
+  candidatesPage.value = 1
+})
+
+function showCreatedList() {
+  if (!showCandidates.value) return
+  candidatesKind.value = 'new'
+}
+
+function showUpdatedList() {
+  if (!showCandidates.value) return
+  if (!(activeRun.value?.stats?.updated)) return
+  candidatesKind.value = 'updated'
+}
 
 function toggleSource(id: ImportSourceId) {
   if (selectedSources.value.includes(id)) {
@@ -115,6 +135,10 @@ function excerpt(text: string, max = 160) {
   const clean = text.replace(/\s+/g, ' ').trim()
   if (clean.length <= max) return clean
   return `${clean.slice(0, max).trim()}…`
+}
+
+function candidateChanges(c: CandidateRow): ImportFieldChange[] {
+  return readImportChanges(c.payload)
 }
 
 /** Coupe la boucle continue locale (reprise / lancement) dès qu’on annule. */
@@ -551,25 +575,79 @@ watch(
             </p>
 
             <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              <div class="rounded-[4px] bg-[#F4F1EA] p-3">
-                <dt class="text-[10px] font-bold uppercase text-[#636363]">Scrapés</dt>
-                <dd class="text-lg font-extrabold">{{ activeRun.stats?.scraped ?? 0 }}</dd>
+              <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Scrapés</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.scraped ?? 0 }}</dd>
               </div>
-              <div class="rounded-[4px] bg-[#F4F1EA] p-3">
-                <dt class="text-[10px] font-bold uppercase text-[#636363]">Prêts</dt>
-                <dd class="text-lg font-extrabold">{{ activeRun.stats?.ready ?? 0 }}</dd>
+              <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Prêts</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.ready ?? 0 }}</dd>
               </div>
-              <div class="rounded-[4px] bg-[#F4F1EA] p-3">
-                <dt class="text-[10px] font-bold uppercase text-[#636363]">Doublons</dt>
-                <dd class="text-lg font-extrabold">{{ activeRun.stats?.duplicates ?? 0 }}</dd>
+              <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Doublons</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.duplicates ?? 0 }}</dd>
               </div>
-              <div class="rounded-[4px] bg-[#F4F1EA] p-3">
-                <dt class="text-[10px] font-bold uppercase text-[#636363]">Créés</dt>
-                <dd class="text-lg font-extrabold">{{ activeRun.stats?.created ?? 0 }}</dd>
+              <div>
+                <dt class="sr-only">Créés</dt>
+                <dd>
+                  <button
+                    type="button"
+                    class="group flex w-full flex-col rounded-[4px] border px-3 py-3 text-left transition disabled:cursor-default"
+                    :class="showCandidates && candidatesKind === 'new'
+                      ? 'border-[#111111] bg-[#111111] text-[#FFFCF4]'
+                      : showCandidates
+                        ? 'border-[#DDDAD3] bg-white hover:border-[#111111]'
+                        : 'border-[#DDDAD3] bg-[#FFFCF4]'"
+                    :disabled="!showCandidates"
+                    @click="showCreatedList"
+                  >
+                    <span
+                      class="text-[10px] font-bold uppercase tracking-wide"
+                      :class="showCandidates && candidatesKind === 'new' ? 'text-[#9C6EE8]' : 'text-[#636363]'"
+                    >
+                      Créés
+                    </span>
+                    <span class="mt-1 text-lg font-extrabold tabular-nums">{{ activeRun.stats?.created ?? 0 }}</span>
+                    <span
+                      v-if="showCandidates"
+                      class="mt-2 text-[10px] font-bold uppercase tracking-wide"
+                      :class="candidatesKind === 'new' ? 'text-[#FFFCF4]/70' : 'text-[#6735B6] group-hover:underline'"
+                    >
+                      {{ candidatesKind === 'new' ? 'Liste active' : 'Afficher' }}
+                    </span>
+                  </button>
+                </dd>
               </div>
-              <div class="rounded-[4px] bg-[#F4F1EA] p-3">
-                <dt class="text-[10px] font-bold uppercase text-[#636363]">MAJ</dt>
-                <dd class="text-lg font-extrabold">{{ activeRun.stats?.updated ?? 0 }}</dd>
+              <div>
+                <dt class="sr-only">MAJ</dt>
+                <dd>
+                  <button
+                    type="button"
+                    class="group flex w-full flex-col rounded-[4px] border px-3 py-3 text-left transition disabled:cursor-default disabled:opacity-50"
+                    :class="showCandidates && (activeRun.stats?.updated || 0) > 0 && candidatesKind === 'updated'
+                      ? 'border-[#6735B6] bg-[#6735B6] text-[#FFFCF4]'
+                      : showCandidates && (activeRun.stats?.updated || 0) > 0
+                        ? 'border-[#DDDAD3] bg-white hover:border-[#6735B6]'
+                        : 'border-[#DDDAD3] bg-[#FFFCF4]'"
+                    :disabled="!showCandidates || !(activeRun.stats?.updated)"
+                    @click="showUpdatedList"
+                  >
+                    <span
+                      class="text-[10px] font-bold uppercase tracking-wide"
+                      :class="candidatesKind === 'updated' && showCandidates ? 'text-[#E8D9F8]' : 'text-[#636363]'"
+                    >
+                      MAJ
+                    </span>
+                    <span class="mt-1 text-lg font-extrabold tabular-nums">{{ activeRun.stats?.updated ?? 0 }}</span>
+                    <span
+                      v-if="showCandidates && (activeRun.stats?.updated || 0) > 0"
+                      class="mt-2 text-[10px] font-bold uppercase tracking-wide"
+                      :class="candidatesKind === 'updated' ? 'text-[#FFFCF4]/70' : 'text-[#6735B6] group-hover:underline'"
+                    >
+                      {{ candidatesKind === 'updated' ? 'Liste active' : 'Afficher' }}
+                    </span>
+                  </button>
+                </dd>
               </div>
             </dl>
 
@@ -607,7 +685,9 @@ watch(
 
         <div class="rounded-[8px] border border-[#DDDAD3] bg-white p-5 shadow-soft">
           <h2 class="text-sm font-extrabold uppercase tracking-wide">
-            {{ showCandidates ? 'Nouveaux candidats' : 'Candidats' }}
+            <template v-if="!showCandidates">Candidats</template>
+            <template v-else-if="candidatesKind === 'updated'">Mises à jour</template>
+            <template v-else>Nouveaux candidats</template>
           </h2>
 
           <div
@@ -649,10 +729,15 @@ watch(
               v-else-if="!detailData?.candidates?.items?.length"
               class="mt-4 text-sm text-[#636363]"
             >
-              Aucun nouvel événement.
-              <span v-if="(activeRun.stats?.updated || 0) > 0">
-                {{ activeRun.stats.updated }} mise(s) à jour appliquée(s) en base.
-              </span>
+              <template v-if="candidatesKind === 'updated'">
+                Aucune mise à jour pour cet import.
+              </template>
+              <template v-else>
+                Aucun nouvel événement.
+                <span v-if="(activeRun.stats?.updated || 0) > 0">
+                  {{ activeRun.stats.updated }} mise(s) à jour — cliquez sur le bloc MAJ pour les voir.
+                </span>
+              </template>
             </p>
             <ul v-else class="mt-4 divide-y divide-[#DDDAD3]">
               <li
@@ -660,63 +745,135 @@ watch(
                 :key="c.id"
                 class="py-4"
               >
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                  <div class="min-w-0 flex-1">
+                <!-- Liste MAJ : uniquement les champs modifiés -->
+                <template v-if="candidatesKind === 'updated'">
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                      <NuxtLink
+                        v-if="candidateAdminPath(c)"
+                        :to="candidateAdminPath(c)!"
+                        class="text-sm font-bold text-[#111111] hover:text-[#6735B6] hover:underline"
+                      >
+                        {{ c.title }}
+                      </NuxtLink>
+                      <p v-else class="text-sm font-bold text-[#111111]">{{ c.title }}</p>
+                      <p class="mt-1 text-xs text-[#636363]">
+                        {{ c.cityName }}
+                        ·
+                        <a
+                          :href="c.sourceUrl"
+                          target="_blank"
+                          rel="noopener"
+                          class="font-semibold text-[#6735B6] hover:underline"
+                        >
+                          {{ sourceLinkLabel(c.source) }}
+                        </a>
+                      </p>
+
+                      <ul
+                        v-if="candidateChanges(c).length"
+                        class="mt-3 space-y-2"
+                      >
+                        <li
+                          v-for="change in candidateChanges(c)"
+                          :key="change.field"
+                          class="rounded-[4px] border border-[#E8D9F8] bg-[#F7F2FC] px-3 py-2"
+                        >
+                          <p class="text-[10px] font-bold uppercase tracking-wide text-[#4D257D]">
+                            {{ change.label }}
+                          </p>
+                          <p class="mt-1 text-xs leading-relaxed text-[#636363] line-through decoration-[#AD291F]/50">
+                            {{ change.field === 'description' ? excerpt(change.before, 120) : change.before }}
+                          </p>
+                          <p class="mt-0.5 text-sm font-semibold leading-relaxed text-[#111111]">
+                            {{ change.field === 'description' ? excerpt(change.after, 160) : change.after }}
+                          </p>
+                        </li>
+                      </ul>
+                      <p
+                        v-else
+                        class="mt-3 text-xs text-[#805200]"
+                      >
+                        Aucun détail de diff enregistré (import antérieur à cette fonctionnalité).
+                        <NuxtLink
+                          v-if="candidateAdminPath(c)"
+                          :to="candidateAdminPath(c)!"
+                          class="font-semibold text-[#6735B6] hover:underline"
+                        >
+                          Ouvrir la fiche
+                        </NuxtLink>
+                      </p>
+                    </div>
                     <NuxtLink
                       v-if="candidateAdminPath(c)"
                       :to="candidateAdminPath(c)!"
-                      class="text-sm font-bold text-[#D1271C] hover:underline"
+                      class="shrink-0"
                     >
-                      {{ c.title }}
+                      <UiButton size="sm" variant="outline" type="button">Voir la fiche</UiButton>
                     </NuxtLink>
-                    <p v-else class="text-sm font-bold text-[#111111]">{{ c.title }}</p>
-                    <p
-                      v-if="candidateUnavailableHint(c)"
-                      class="mt-1 text-xs text-[#805200]"
-                    >
-                      {{ candidateUnavailableHint(c) }}
-                    </p>
-                    <p
-                      v-if="c.description"
-                      class="mt-2 text-sm leading-snug text-[#454545]"
-                    >
-                      {{ excerpt(c.description) }}
-                    </p>
-                    <p class="mt-2 text-xs text-[#636363]">
-                      {{ c.cityName }}
-                      <template v-if="c.startAt"> · {{ c.startAt.slice(0, 16).replace('T', ' ') }}</template>
-                      ·
-                      <a
-                        :href="c.sourceUrl"
-                        target="_blank"
-                        rel="noopener"
-                        class="font-semibold text-[#6735B6] hover:underline"
+                  </div>
+                </template>
+
+                <!-- Liste créations -->
+                <template v-else>
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                      <NuxtLink
+                        v-if="candidateAdminPath(c)"
+                        :to="candidateAdminPath(c)!"
+                        class="text-sm font-bold text-[#D1271C] hover:underline"
                       >
-                        {{ sourceLinkLabel(c.source) }}
-                      </a>
-                    </p>
+                        {{ c.title }}
+                      </NuxtLink>
+                      <p v-else class="text-sm font-bold text-[#111111]">{{ c.title }}</p>
+                      <p
+                        v-if="candidateUnavailableHint(c)"
+                        class="mt-1 text-xs text-[#805200]"
+                      >
+                        {{ candidateUnavailableHint(c) }}
+                      </p>
+                      <p
+                        v-if="c.description"
+                        class="mt-2 text-sm leading-snug text-[#454545]"
+                      >
+                        {{ excerpt(c.description) }}
+                      </p>
+                      <p class="mt-2 text-xs text-[#636363]">
+                        {{ c.cityName }}
+                        <template v-if="c.startAt"> · {{ c.startAt.slice(0, 16).replace('T', ' ') }}</template>
+                        ·
+                        <a
+                          :href="c.sourceUrl"
+                          target="_blank"
+                          rel="noopener"
+                          class="font-semibold text-[#6735B6] hover:underline"
+                        >
+                          {{ sourceLinkLabel(c.source) }}
+                        </a>
+                      </p>
+                    </div>
+                    <div class="flex shrink-0 flex-col gap-2">
+                      <UiButton
+                        v-if="canPublishCandidate(c)"
+                        size="sm"
+                        variant="red"
+                        :disabled="publishingId === c.id || busy"
+                        @click="publishCandidate(c)"
+                      >
+                        {{ publishingId === c.id ? 'Publication…' : 'Publier' }}
+                      </UiButton>
+                      <UiButton
+                        v-if="canUnpublishCandidate(c)"
+                        size="sm"
+                        variant="outline"
+                        :disabled="publishingId === c.id || busy"
+                        @click="unpublishCandidate(c)"
+                      >
+                        {{ publishingId === c.id ? 'Dépublication…' : 'Dépublier' }}
+                      </UiButton>
+                    </div>
                   </div>
-                  <div class="flex shrink-0 flex-col gap-2">
-                    <UiButton
-                      v-if="canPublishCandidate(c)"
-                      size="sm"
-                      variant="red"
-                      :disabled="publishingId === c.id || busy"
-                      @click="publishCandidate(c)"
-                    >
-                      {{ publishingId === c.id ? 'Publication…' : 'Publier' }}
-                    </UiButton>
-                    <UiButton
-                      v-if="canUnpublishCandidate(c)"
-                      size="sm"
-                      variant="outline"
-                      :disabled="publishingId === c.id || busy"
-                      @click="unpublishCandidate(c)"
-                    >
-                      {{ publishingId === c.id ? 'Dépublication…' : 'Dépublier' }}
-                    </UiButton>
-                  </div>
-                </div>
+                </template>
               </li>
             </ul>
 

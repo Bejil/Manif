@@ -31,20 +31,19 @@ export async function scrapeDemosphereHosts(
   const minTs = Date.now() - 24 * 3600 * 1000
   const maxTs = Date.now() + 400 * 24 * 3600 * 1000
 
-  for (const host of hosts) {
-    if (out.length >= max) break
+  async function scrapeHost(host: string): Promise<ImportScrapedEvent[]> {
     const url = `https://${host}.demosphere.net/events.xml`
     let xml: string
     try {
       xml = await fetchText(url)
     }
     catch {
-      continue
+      return []
     }
     const items = parseRssItems(xml)
     const fallbackCity = DEMOSPHERE_HOST_CITY[host] || host.replace(/furieuse$/, '')
+    const hostOut: ImportScrapedEvent[] = []
     for (const item of items) {
-      if (out.length >= max) break
       const title = item.title.trim()
       const link = item.link.trim()
       if (!title || !link) continue
@@ -67,7 +66,7 @@ export async function scrapeDemosphereHosts(
       let loc = (item.georssFeatureName || city).trim()
       if (loc === 'Gare' || loc === 'Centre') loc = `${loc} (${city})`
       const end = new Date(start.getTime() + 3 * 3600 * 1000)
-      out.push(normalizeScraped({
+      hostOut.push(normalizeScraped({
         source: 'demosphere',
         sourceUrl: link,
         externalId: link,
@@ -83,6 +82,20 @@ export async function scrapeDemosphereHosts(
         endIsEstimated: true,
         raw: { host },
       }))
+    }
+    return hostOut
+  }
+
+  // Parallèle limité (évite N×12s séquentiels sur un lot)
+  const concurrency = 3
+  for (let i = 0; i < hosts.length && out.length < max; i += concurrency) {
+    const slice = hosts.slice(i, i + concurrency)
+    const parts = await Promise.all(slice.map(scrapeHost))
+    for (const part of parts) {
+      for (const ev of part) {
+        if (out.length >= max) break
+        out.push(ev)
+      }
     }
   }
   return out
