@@ -35,6 +35,8 @@ const publishingId = ref<string | null>(null)
 const errorMsg = ref<string | null>(null)
 const successMsg = ref<string | null>(null)
 const activeRunId = ref<string | null>(null)
+/** Affichage immédiat au lancement (avant la réponse API) — évite de garder l’ancien « terminé ». */
+const optimisticRun = ref<ImportRunRecord | null>(null)
 
 const { data: runsData, refresh: refreshRuns } = await useFetch<{ items: ImportRunRecord[] }>(
   '/api/admin/imports',
@@ -42,10 +44,51 @@ const { data: runsData, refresh: refreshRuns } = await useFetch<{ items: ImportR
 )
 
 const activeRun = computed(() =>
-  runsData.value?.items?.find(r => r.id === activeRunId.value)
+  optimisticRun.value
+  || runsData.value?.items?.find(r => r.id === activeRunId.value)
   || runsData.value?.items?.[0]
   || null,
 )
+
+function emptyImportStats() {
+  return {
+    scraped: 0,
+    pending: 0,
+    ready: 0,
+    duplicates: 0,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: 0,
+    bySource: {},
+  }
+}
+
+function makeStartingRun(): ImportRunRecord {
+  const now = new Date().toISOString()
+  return {
+    id: '__starting__',
+    status: 'pending',
+    mode: mode.value,
+    sources: [...selectedSources.value],
+    options: { militantOnly: true, geocode: true },
+    progress: {
+      cursor: 0,
+      totalUnits: 0,
+      unitsDone: [],
+      message: 'Démarrage de l’import…',
+      phase: 'scrape',
+      percent: 0,
+    },
+    stats: emptyImportStats(),
+    errorMessage: null,
+    actorId: null,
+    startedAt: now,
+    finishedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  }
+}
 
 const candidatesPage = ref(1)
 /** Liste affichée : créations ou mises à jour. */
@@ -121,6 +164,25 @@ function showUpdatedList() {
   candidatesKind.value = 'updated'
 }
 
+/** Met à jour une carte sans recharger toute la liste. */
+function patchCandidateLocal(id: string, patch: Partial<CandidateRow>) {
+  const list = detailData.value?.candidates
+  if (!list?.items?.length) return
+  const idx = list.items.findIndex(x => x.id === id)
+  if (idx < 0) return
+  list.items[idx] = { ...list.items[idx]!, ...patch }
+}
+
+function removeCandidateLocal(id: string) {
+  const list = detailData.value?.candidates
+  if (!list?.items) return
+  const before = list.items.length
+  list.items = list.items.filter(x => x.id !== id)
+  if (list.items.length < before) {
+    list.total = Math.max(0, (list.total || 0) - (before - list.items.length))
+  }
+}
+
 function toggleSource(id: ImportSourceId) {
   if (selectedSources.value.includes(id)) {
     selectedSources.value = selectedSources.value.filter(s => s !== id)
@@ -185,11 +247,18 @@ async function resumeRun() {
 
 async function startImport() {
   errorMsg.value = null
+  successMsg.value = null
   if (!selectedSources.value.length) {
     errorMsg.value = 'Sélectionnez au moins une source.'
     return
   }
   abortContinue.value = false
+  // Reset immédiat du panneau (titre, %, barre, timer, message)
+  const starting = makeStartingRun()
+  optimisticRun.value = starting
+  activeRunId.value = starting.id
+  candidatesPage.value = 1
+  candidatesKind.value = 'new'
   busy.value = true
   try {
     const step = await $fetch<{ run: ImportRunRecord, done: boolean }>(
@@ -205,6 +274,7 @@ async function startImport() {
         },
       },
     )
+    optimisticRun.value = null
     activeRunId.value = step.run.id
     autoResumeTriedFor = step.run.id
     await refreshRuns()
@@ -212,6 +282,7 @@ async function startImport() {
     await refreshDetail()
   }
   catch (e: unknown) {
+    optimisticRun.value = null
     if (!abortContinue.value) {
       errorMsg.value = e && typeof e === 'object' && 'data' in e
         ? String((e as { data?: { statusMessage?: string } }).data?.statusMessage || 'Échec du lancement')
@@ -219,6 +290,7 @@ async function startImport() {
     }
   }
   finally {
+    optimisticRun.value = null
     busy.value = false
   }
 }
@@ -311,7 +383,15 @@ async function publishApplied() {
       { method: 'POST', credentials: 'include' },
     )
     successMsg.value = `${res.published} publié(s), ${res.alreadyPublished} déjà public(s), ${res.missing} introuvable(s).`
-    await refreshDetail()
+    // Mise à jour locale des cartes — pas de refresh qui fait clignoter la liste
+    const items = detailData.value?.candidates?.items
+    if (items) {
+      for (const row of items) {
+        if (row.publicationStatus === 'draft' || row.publicationStatus === 'unpublished') {
+          patchCandidateLocal(row.id, { publicationStatus: 'published' })
+        }
+      }
+    }
   }
   catch {
     errorMsg.value = 'Échec de la publication des brouillons'
@@ -328,7 +408,7 @@ async function publishCandidate(c: CandidateRow) {
   errorMsg.value = null
   try {
     await $fetch(`/api/admin/events/${eventId}/publish`, { method: 'POST', credentials: 'include' })
-    await refreshDetail()
+    patchCandidateLocal(c.id, { publicationStatus: 'published' })
   }
   catch {
     errorMsg.value = 'Publication impossible'
@@ -345,7 +425,7 @@ async function unpublishCandidate(c: CandidateRow) {
   errorMsg.value = null
   try {
     await $fetch(`/api/admin/events/${eventId}/unpublish`, { method: 'POST', credentials: 'include' })
-    await refreshDetail()
+    patchCandidateLocal(c.id, { publicationStatus: 'unpublished' })
   }
   catch {
     errorMsg.value = 'Dépublication impossible'
@@ -366,7 +446,7 @@ async function deleteCandidate(c: CandidateRow) {
   try {
     await $fetch(`/api/admin/events/${eventId}`, { method: 'DELETE', credentials: 'include' })
     successMsg.value = 'Événement supprimé.'
-    await refreshDetail()
+    removeCandidateLocal(c.id)
   }
   catch {
     errorMsg.value = 'Suppression impossible'
@@ -406,6 +486,13 @@ onBeforeUnmount(() => {
 const progressPct = computed(() => {
   const run = activeRun.value
   if (!run) return 0
+  // Pendant le démarrage optimiste / un run live, ne jamais coller à 100 %
+  if (run.id === '__starting__' || busy.value && RUN_LIVE.has(run.status)) {
+    if (typeof run.progress?.percent === 'number') {
+      return Math.min(99, Math.max(0, Math.round(run.progress.percent)))
+    }
+    return 0
+  }
   if (run.status === 'completed') return 100
   if (typeof run.progress?.percent === 'number') {
     return Math.min(100, Math.max(0, Math.round(run.progress.percent)))
@@ -604,69 +691,28 @@ watch(
               class="mt-2 text-sm font-semibold text-[#805200]"
             >
               <template v-if="needsPrepare">
-                {{ activeRun.stats?.pending }} candidat(s) encore en attente de préparation
-                (jamais passés à « prêts »). Reprenez l’import pour les traiter.
+                {{ activeRun.stats?.pending }} événement(s) scrapés pas encore traités.
+                Reprenez l’import pour les finaliser.
               </template>
               <template v-else>
-                L’écriture n’est pas allée au bout (compteurs désynchronisés).
-                Utilisez « Reprendre / finir l’écriture » si la reprise auto n’a pas suffi.
+                L’écriture n’est pas allée au bout.
+                Utilisez « Reprendre » si la reprise auto n’a pas suffi.
               </template>
             </p>
             <p
               v-else-if="(activeRun.stats?.errors || 0) > 0 && !busy"
               class="mt-2 text-sm font-semibold text-[#AD291F]"
             >
-              {{ activeRun.stats.errors }} candidat(s) en erreur — ils n’ont pas été créés.
-            </p>
-            <p
-              v-else-if="(activeRun.stats?.scraped || 0) > 0
-                && !(activeRun.stats?.ready || 0)
-                && !(activeRun.stats?.duplicates || 0)
-                && !(activeRun.stats?.created || 0)
-                && !(activeRun.stats?.updated || 0)
-                && !(activeRun.stats?.pending || 0)
-                && !(activeRun.stats?.errors || 0)
-                && !runInProgress
-                && !busy"
-              class="mt-2 text-sm font-semibold text-[#805200]"
-            >
-              Compteur « scrapés » gonflé sans candidats en base — relancez un import
-              (le compteur est maintenant basé sur les insertions réelles).
+              {{ activeRun.stats.errors }} erreur(s) — ces événements n’ont pas été créés.
             </p>
 
-            <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+            <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
                 <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Scrapés</dt>
                 <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.scraped ?? 0 }}</dd>
               </div>
-              <div
-                class="rounded-[4px] border p-3"
-                :class="(activeRun.stats?.pending || 0) > 0
-                  ? 'border-[#C48A00] bg-[#FFF8E8]'
-                  : 'border-[#DDDAD3] bg-[#FFFCF4]'"
-              >
-                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">En attente</dt>
-                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.pending ?? 0 }}</dd>
-              </div>
-              <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
-                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Prêts</dt>
-                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.ready ?? 0 }}</dd>
-              </div>
-              <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
-                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Doublons</dt>
-                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.duplicates ?? 0 }}</dd>
-              </div>
-              <div
-                class="rounded-[4px] border p-3"
-                :class="(activeRun.stats?.errors || 0) > 0
-                  ? 'border-[#AD291F] bg-[#FDF2F0]'
-                  : 'border-[#DDDAD3] bg-[#FFFCF4]'"
-              >
-                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Erreurs</dt>
-                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.errors ?? 0 }}</dd>
-              </div>
               <div>
-                <dt class="sr-only">Créés</dt>
+                <dt class="sr-only">Candidats</dt>
                 <dd>
                   <button
                     type="button"
@@ -683,7 +729,7 @@ watch(
                       class="text-[10px] font-bold uppercase tracking-wide"
                       :class="showCandidates && candidatesKind === 'new' ? 'text-[#9C6EE8]' : 'text-[#636363]'"
                     >
-                      Créés
+                      Candidats
                     </span>
                     <span class="mt-1 text-lg font-extrabold tabular-nums">{{ activeRun.stats?.created ?? 0 }}</span>
                     <span
@@ -696,8 +742,12 @@ watch(
                   </button>
                 </dd>
               </div>
+              <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Doublons</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.duplicates ?? 0 }}</dd>
+              </div>
               <div>
-                <dt class="sr-only">MAJ</dt>
+                <dt class="sr-only">Maj</dt>
                 <dd>
                   <button
                     type="button"
@@ -714,7 +764,7 @@ watch(
                       class="text-[10px] font-bold uppercase tracking-wide"
                       :class="candidatesKind === 'updated' && showCandidates ? 'text-[#E8D9F8]' : 'text-[#636363]'"
                     >
-                      MAJ
+                      Maj
                     </span>
                     <span class="mt-1 text-lg font-extrabold tabular-nums">{{ activeRun.stats?.updated ?? 0 }}</span>
                     <span
@@ -726,6 +776,15 @@ watch(
                     </span>
                   </button>
                 </dd>
+              </div>
+              <div
+                class="rounded-[4px] border p-3"
+                :class="(activeRun.stats?.errors || 0) > 0
+                  ? 'border-[#AD291F] bg-[#FDF2F0]'
+                  : 'border-[#DDDAD3] bg-[#FFFCF4]'"
+              >
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Erreurs</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.errors ?? 0 }}</dd>
               </div>
             </dl>
 
@@ -802,7 +861,12 @@ watch(
             Import {{ activeRun.status === 'cancelled' ? 'annulé' : 'en échec' }} — pas de liste de candidats.
           </p>
           <template v-else-if="showCandidates">
-            <p v-if="detailPending" class="mt-4 text-sm text-[#636363]">Chargement…</p>
+            <p
+              v-if="detailPending && !detailData?.candidates?.items?.length"
+              class="mt-4 text-sm text-[#636363]"
+            >
+              Chargement…
+            </p>
             <p
               v-else-if="!detailData?.candidates?.items?.length"
               class="mt-4 text-sm text-[#636363]"
@@ -813,11 +877,14 @@ watch(
               <template v-else>
                 Aucun nouvel événement.
                 <span v-if="(activeRun.stats?.updated || 0) > 0">
-                  {{ activeRun.stats.updated }} mise(s) à jour — cliquez sur le bloc MAJ pour les voir.
+                  {{ activeRun.stats.updated }} mise(s) à jour — cliquez sur le bloc Maj pour les voir.
                 </span>
               </template>
             </p>
-            <ul v-else class="mt-4 divide-y divide-[#DDDAD3]">
+            <ul
+              v-if="detailData?.candidates?.items?.length"
+              class="mt-4 divide-y divide-[#DDDAD3]"
+            >
               <li
                 v-for="c in detailData.candidates.items"
                 :key="c.id"
