@@ -53,6 +53,8 @@ export interface ImportRunProgress {
 
 export interface ImportRunStats {
   scraped: number
+  /** Encore en attente de préparation (match + géocode). */
+  pending?: number
   ready: number
   duplicates: number
   created: number

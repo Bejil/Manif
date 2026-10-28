@@ -109,9 +109,11 @@ export async function continueImportRun(runId: string): Promise<{
       run = await updateImportRun(runId, {
         status: 'scraped',
         finishedAt: null,
+        stats: { ...run.stats, pending: pendingLeft },
         progress: {
           ...run.progress,
           message: `Reprise — ${pendingLeft} candidat(s) encore à préparer…`,
+          phase: 'prepare',
         },
       })
     }
@@ -122,13 +124,26 @@ export async function continueImportRun(runId: string): Promise<{
         progress: {
           ...run.progress,
           message: `Reprise — ${toApply} candidat(s) encore à écrire…`,
+          phase: 'apply',
         },
       })
     }
     else {
-      // Stats parfois en retard sur la DB : resync puis sortir
+      // Stats parfois en retard sur la DB : resync (corrige aussi un faux « scrapés »)
       const recounted = await recountImportWriteStats(runId)
-      if (recounted.ready + recounted.duplicates > 0) {
+      if ((recounted.pending || 0) > 0) {
+        run = await updateImportRun(runId, {
+          status: 'scraped',
+          finishedAt: null,
+          stats: { ...run.stats, ...recounted },
+          progress: {
+            ...run.progress,
+            message: `Reprise — ${recounted.pending} candidat(s) encore à préparer…`,
+            phase: 'prepare',
+          },
+        })
+      }
+      else if (recounted.ready + recounted.duplicates > 0) {
         run = await updateImportRun(runId, {
           status: 'applying',
           finishedAt: null,
@@ -136,6 +151,7 @@ export async function continueImportRun(runId: string): Promise<{
           progress: {
             ...run.progress,
             message: `Reprise — ${recounted.ready + recounted.duplicates} candidat(s) encore à écrire…`,
+            phase: 'apply',
           },
         })
       }
@@ -144,7 +160,9 @@ export async function continueImportRun(runId: string): Promise<{
           stats: { ...run.stats, ...recounted },
           progress: {
             ...run.progress,
-            message: 'Import terminé',
+            message: recounted.scraped === 0 && (run.stats.scraped || 0) > 0
+              ? 'Import terminé — aucun candidat en base (compteur scrapés corrigé)'
+              : 'Import terminé',
             phase: 'done',
             percent: 100,
           },
@@ -236,6 +254,21 @@ export async function continueImportRun(runId: string): Promise<{
       return { run: fresh, done: false, step: 'prepare' }
     }
 
+    // Si la prépa a échoué (pending illisibles → failed), sortir
+    {
+      const afterPrepare = await getImportRun(runId)
+      if (afterPrepare?.status === 'failed') {
+        return { run: afterPrepare, done: true, step: 'failed' }
+      }
+    }
+
+    // Ne jamais passer à l’écriture s’il reste des pending (garde-fou)
+    const stillPreparing = await countCandidatesByStatuses(runId, ['pending'])
+    if (stillPreparing > 0) {
+      const fresh = (await getImportRun(runId))!
+      return { run: fresh, done: false, step: 'prepare' }
+    }
+
     const applying = await updateImportRun(runId, {
       status: 'applying',
       progress: {
@@ -249,14 +282,29 @@ export async function continueImportRun(runId: string): Promise<{
   }
 
   if (run.status === 'applying') {
+    // Des pending ont été oubliés (ancien bug exhausted) → revenir à la préparation
+    const orphanPending = await countCandidatesByStatuses(runId, ['pending'])
+    if (orphanPending > 0) {
+      const back = await updateImportRun(runId, {
+        status: 'scraped',
+        finishedAt: null,
+        progress: {
+          ...run.progress,
+          message: `Reprise préparation — ${orphanPending} candidat(s) en attente…`,
+          phase: 'prepare',
+        },
+      })
+      return { run: back, done: false, step: 'prepare-orphan' }
+    }
+
     const applied = await applyCandidatesBatch(runId, run.mode)
     if (!applied.exhausted) {
       const fresh = (await getImportRun(runId))!
       return { run: fresh, done: false, step: 'apply' }
     }
     // Garde-fou : candidats encore « ready » alors que le lot est vide → erreur, pas de boucle
-    const stillPending = await countCandidatesByStatuses(runId, ['ready', 'duplicate'])
-    if (stillPending > 0) {
+    const stillReady = await countCandidatesByStatuses(runId, ['ready', 'duplicate'])
+    if (stillReady > 0) {
       await failReadyCandidates(
         runId,
         'Écriture bloquée après apply — candidat marqué en erreur',
@@ -264,6 +312,19 @@ export async function continueImportRun(runId: string): Promise<{
     }
     const live = await getImportRun(runId)
     const recounted = await recountImportWriteStats(runId)
+    if ((recounted.pending || 0) > 0) {
+      const back = await updateImportRun(runId, {
+        status: 'scraped',
+        finishedAt: null,
+        stats: { ...(live?.stats || run.stats), ...recounted },
+        progress: {
+          ...run.progress,
+          message: `Reprise préparation — ${recounted.pending} candidat(s) en attente…`,
+          phase: 'prepare',
+        },
+      })
+      return { run: back, done: false, step: 'prepare-orphan' }
+    }
     const next = await updateImportRun(runId, {
       status: 'completed',
       finishedAt: nowIso(),
@@ -284,7 +345,27 @@ export async function continueImportRun(runId: string): Promise<{
 async function prepareCandidatesBatch(runId: string, doGeocode: boolean) {
   // Lots plus petits si géocode (BAN) pour rester sous le budget Vercel
   const pendingOnly = await getPendingCandidates(runId, doGeocode ? 12 : 30)
-  if (!pendingOnly.length) return { exhausted: true }
+  if (!pendingOnly.length) {
+    // Compteur dit pending mais lecture vide → marquer en erreur pour ne pas boucler
+    const stuck = await countCandidatesByStatuses(runId, ['pending'])
+    if (stuck > 0) {
+      const run = (await getImportRun(runId))!
+      // Impossible de les lire : on force le recount et on sort (exhausted)
+      // L’appelant verra stillPreparing et pourra échouer proprement.
+      await updateImportRun(runId, {
+        stats: { ...run.stats, pending: stuck },
+        progress: {
+          ...run.progress,
+          message: `${stuck} candidat(s) pending illisibles — arrêt préparation`,
+          phase: 'prepare',
+        },
+        errorMessage: `${stuck} candidat(s) en attente impossibles à préparer`,
+        status: 'failed',
+        finishedAt: nowIso(),
+      })
+    }
+    return { exhausted: true }
+  }
 
   const run = (await getImportRun(runId))!
   let ready = run.stats.ready || 0
@@ -362,16 +443,19 @@ async function prepareCandidatesBatch(runId: string, doGeocode: boolean) {
   const pendingLeft = await countCandidatesByStatuses(runId, ['pending'])
   const scrapedTotal = run.stats.scraped || 0
   await updateImportRun(runId, {
-    stats: { ...run.stats, ready, duplicates, errors },
+    stats: { ...run.stats, ready, duplicates, errors, pending: pendingLeft },
     progress: {
       ...run.progress,
-      message: `Préparation… prêts=${ready} doublons=${duplicates}`,
+      message: pendingLeft > 0
+        ? `Préparation… prêts=${ready} doublons=${duplicates} restants=${pendingLeft}`
+        : `Préparation terminée — prêts=${ready} doublons=${duplicates}`,
       phase: 'prepare',
       percent: preparePercent(scrapedTotal, pendingLeft),
     },
   })
 
-  return { exhausted: pendingOnly.length < 25 }
+  // Exhausté seulement quand plus aucun pending (pas quand le lot est « petit »)
+  return { exhausted: pendingLeft === 0 }
 }
 
 async function applyCandidatesBatch(runId: string, mode: ImportModeId) {

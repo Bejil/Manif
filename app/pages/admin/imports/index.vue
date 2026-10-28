@@ -69,15 +69,18 @@ const needsWrite = computed(() => {
   return prepared > written
 })
 
+/** Candidats encore en attente de préparation. */
+const needsPrepare = computed(() => (activeRun.value?.stats?.pending || 0) > 0)
+
 /** Vrai seulement pendant scrape / préparation / écriture — pas un « completed » désynchronisé. */
 const runInProgress = computed(() => {
   const s = activeRun.value?.status
   return Boolean(s && RUN_LIVE.has(s))
 })
 
-/** Terminé côté statut, mais stats suggèrent une écriture incomplète. */
+/** Terminé côté statut, mais pipeline incomplet (pending ou écriture). */
 const writeIncomplete = computed(() =>
-  activeRun.value?.status === 'completed' && needsWrite.value,
+  activeRun.value?.status === 'completed' && (needsWrite.value || needsPrepare.value),
 )
 
 const showCandidates = computed(() =>
@@ -242,6 +245,10 @@ function canPublishCandidate(c: CandidateRow): boolean {
   return c.publicationStatus === 'draft' || c.publicationStatus === 'unpublished'
 }
 
+function canDeleteCandidate(c: CandidateRow): boolean {
+  return canPublishCandidate(c)
+}
+
 function canUnpublishCandidate(c: CandidateRow): boolean {
   const eventId = c.appliedEventId || c.matchEventId
   if (!eventId) return false
@@ -348,6 +355,27 @@ async function unpublishCandidate(c: CandidateRow) {
   }
 }
 
+async function deleteCandidate(c: CandidateRow) {
+  const eventId = c.appliedEventId || c.matchEventId
+  if (!eventId) return
+  if (!import.meta.client) return
+  const ok = window.confirm(`Supprimer définitivement « ${c.title} » ?`)
+  if (!ok) return
+  publishingId.value = c.id
+  errorMsg.value = null
+  try {
+    await $fetch(`/api/admin/events/${eventId}`, { method: 'DELETE', credentials: 'include' })
+    successMsg.value = 'Événement supprimé.'
+    await refreshDetail()
+  }
+  catch {
+    errorMsg.value = 'Suppression impossible'
+  }
+  finally {
+    publishingId.value = null
+  }
+}
+
 const nowTick = ref(Date.now())
 let elapsedTimer: ReturnType<typeof setInterval> | null = null
 
@@ -434,10 +462,23 @@ const candidateTotalPages = computed(() => {
 })
 
 const showResume = computed(() => {
-  const s = activeRun.value?.status
-  if (!s || s === 'cancelled' || s === 'failed') return false
-  if (RUN_LIVE.has(s)) return true
-  return writeIncomplete.value
+  const run = activeRun.value
+  if (!run || run.status === 'cancelled' || run.status === 'failed') return false
+  if (RUN_LIVE.has(run.status)) return true
+  if (writeIncomplete.value) return true
+  // Ancien bug : « scrapés » comptés sans suivi pending → reprise pour resync DB
+  if (run.status === 'completed') {
+    const s = run.stats || {}
+    const accounted = (s.ready || 0)
+      + (s.duplicates || 0)
+      + (s.created || 0)
+      + (s.updated || 0)
+      + (s.skipped || 0)
+      + (s.errors || 0)
+      + (s.pending || 0)
+    if ((s.scraped || 0) > accounted) return true
+  }
+  return false
 })
 
 const lastRunHeading = computed(() => {
@@ -525,14 +566,6 @@ watch(
           <UiButton :disabled="busy || cancelling || !selectedSources.length" @click="startImport">
             {{ busy ? 'Import en cours…' : 'Lancer l’import' }}
           </UiButton>
-          <UiButton
-            v-if="canCancelRun"
-            variant="outline"
-            :disabled="cancelling"
-            @click="cancelRun"
-          >
-            {{ cancelling ? 'Annulation…' : 'Arrêter l’import' }}
-          </UiButton>
         </div>
 
       </section>
@@ -570,14 +603,50 @@ watch(
               v-if="writeIncomplete && !busy"
               class="mt-2 text-sm font-semibold text-[#805200]"
             >
-              L’écriture n’est pas allée au bout (compteurs désynchronisés).
-              Utilisez « Reprendre / finir l’écriture » si la reprise auto n’a pas suffi.
+              <template v-if="needsPrepare">
+                {{ activeRun.stats?.pending }} candidat(s) encore en attente de préparation
+                (jamais passés à « prêts »). Reprenez l’import pour les traiter.
+              </template>
+              <template v-else>
+                L’écriture n’est pas allée au bout (compteurs désynchronisés).
+                Utilisez « Reprendre / finir l’écriture » si la reprise auto n’a pas suffi.
+              </template>
+            </p>
+            <p
+              v-else-if="(activeRun.stats?.errors || 0) > 0 && !busy"
+              class="mt-2 text-sm font-semibold text-[#AD291F]"
+            >
+              {{ activeRun.stats.errors }} candidat(s) en erreur — ils n’ont pas été créés.
+            </p>
+            <p
+              v-else-if="(activeRun.stats?.scraped || 0) > 0
+                && !(activeRun.stats?.ready || 0)
+                && !(activeRun.stats?.duplicates || 0)
+                && !(activeRun.stats?.created || 0)
+                && !(activeRun.stats?.updated || 0)
+                && !(activeRun.stats?.pending || 0)
+                && !(activeRun.stats?.errors || 0)
+                && !runInProgress
+                && !busy"
+              class="mt-2 text-sm font-semibold text-[#805200]"
+            >
+              Compteur « scrapés » gonflé sans candidats en base — relancez un import
+              (le compteur est maintenant basé sur les insertions réelles).
             </p>
 
-            <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
               <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
                 <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Scrapés</dt>
                 <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.scraped ?? 0 }}</dd>
+              </div>
+              <div
+                class="rounded-[4px] border p-3"
+                :class="(activeRun.stats?.pending || 0) > 0
+                  ? 'border-[#C48A00] bg-[#FFF8E8]'
+                  : 'border-[#DDDAD3] bg-[#FFFCF4]'"
+              >
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">En attente</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.pending ?? 0 }}</dd>
               </div>
               <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
                 <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Prêts</dt>
@@ -586,6 +655,15 @@ watch(
               <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
                 <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Doublons</dt>
                 <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.duplicates ?? 0 }}</dd>
+              </div>
+              <div
+                class="rounded-[4px] border p-3"
+                :class="(activeRun.stats?.errors || 0) > 0
+                  ? 'border-[#AD291F] bg-[#FDF2F0]'
+                  : 'border-[#DDDAD3] bg-[#FFFCF4]'"
+              >
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Erreurs</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.errors ?? 0 }}</dd>
               </div>
               <div>
                 <dt class="sr-only">Créés</dt>
@@ -861,6 +939,15 @@ watch(
                         @click="publishCandidate(c)"
                       >
                         {{ publishingId === c.id ? 'Publication…' : 'Publier' }}
+                      </UiButton>
+                      <UiButton
+                        v-if="canDeleteCandidate(c)"
+                        size="sm"
+                        variant="outline"
+                        :disabled="publishingId === c.id || busy"
+                        @click="deleteCandidate(c)"
+                      >
+                        {{ publishingId === c.id ? 'Suppression…' : 'Supprimer' }}
                       </UiButton>
                       <UiButton
                         v-if="canUnpublishCandidate(c)"

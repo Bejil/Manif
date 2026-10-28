@@ -33,6 +33,7 @@ type ImportMockStore = ReturnType<typeof getMockStore> & {
 function emptyStats(): ImportRunStats {
   return {
     scraped: 0,
+    pending: 0,
     ready: 0,
     duplicates: 0,
     created: 0,
@@ -257,7 +258,17 @@ export async function insertCandidates(
     return added
   }
 
-  const rows = events.map(ev => ({
+  // Déduplique les URLs dans le lot (évite un faux compteur scrapés)
+  const byUrl = new Map<string, (typeof events)[number]>()
+  for (const ev of events) {
+    const key = ev.sourceUrl.trim()
+    if (!key || byUrl.has(key)) continue
+    byUrl.set(key, ev)
+  }
+  const unique = [...byUrl.values()]
+  if (!unique.length) return 0
+
+  const rows = unique.map(ev => ({
     run_id: runId,
     source: ev.source,
     source_url: ev.sourceUrl,
@@ -279,12 +290,13 @@ export async function insertCandidates(
     status: 'pending',
   }))
 
-  // upsert ignore duplicates within run
+  const before = await countAllCandidates(runId)
   const { error } = await getServiceSupabase()
     .from('import_candidates')
     .upsert(rows, { onConflict: 'run_id,source_url', ignoreDuplicates: true })
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-  return rows.length
+  const after = await countAllCandidates(runId)
+  return Math.max(0, after - before)
 }
 
 export async function listCandidates(
@@ -379,17 +391,33 @@ export async function countCandidatesByStatuses(
   return count ?? 0
 }
 
-/** Recalcule les compteurs d’écriture à partir des candidats (évite stats désync). */
+/** Nombre total de candidats d’un run (tous statuts). */
+export async function countAllCandidates(runId: string): Promise<number> {
+  if (useMockDb()) {
+    return ensureMockImports().importCandidates.filter(c => c.runId === runId).length
+  }
+  const { count, error } = await getServiceSupabase()
+    .from('import_candidates')
+    .select('id', { count: 'exact', head: true })
+    .eq('run_id', runId)
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  return count ?? 0
+}
+
+/** Recalcule les compteurs à partir des candidats (évite stats désync). */
 export async function recountImportWriteStats(runId: string): Promise<{
+  pending: number
   ready: number
   duplicates: number
   created: number
   updated: number
   skipped: number
   errors: number
+  scraped: number
 }> {
   if (useMockDb()) {
     const items = ensureMockImports().importCandidates.filter(c => c.runId === runId)
+    let pending = 0
     let ready = 0
     let duplicates = 0
     let created = 0
@@ -397,7 +425,8 @@ export async function recountImportWriteStats(runId: string): Promise<{
     let skipped = 0
     let errors = 0
     for (const c of items) {
-      if (c.status === 'ready') ready++
+      if (c.status === 'pending') pending++
+      else if (c.status === 'ready') ready++
       else if (c.status === 'duplicate') duplicates++
       else if (c.status === 'skipped') skipped++
       else if (c.status === 'error') errors++
@@ -406,7 +435,16 @@ export async function recountImportWriteStats(runId: string): Promise<{
         else created++
       }
     }
-    return { ready, duplicates, created, updated, skipped, errors }
+    return {
+      pending,
+      ready,
+      duplicates,
+      created,
+      updated,
+      skipped,
+      errors,
+      scraped: items.length,
+    }
   }
 
   const { data, error } = await getServiceSupabase()
@@ -415,6 +453,7 @@ export async function recountImportWriteStats(runId: string): Promise<{
     .eq('run_id', runId)
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
+  let pending = 0
   let ready = 0
   let duplicates = 0
   let created = 0
@@ -424,7 +463,8 @@ export async function recountImportWriteStats(runId: string): Promise<{
   for (const row of data ?? []) {
     const status = String(row.status)
     const payload = (row.payload || {}) as Record<string, unknown>
-    if (status === 'ready') ready++
+    if (status === 'pending') pending++
+    else if (status === 'ready') ready++
     else if (status === 'duplicate') duplicates++
     else if (status === 'skipped') skipped++
     else if (status === 'error') errors++
@@ -433,7 +473,16 @@ export async function recountImportWriteStats(runId: string): Promise<{
       else created++
     }
   }
-  return { ready, duplicates, created, updated, skipped, errors }
+  return {
+    pending,
+    ready,
+    duplicates,
+    created,
+    updated,
+    skipped,
+    errors,
+    scraped: (data ?? []).length,
+  }
 }
 
 /** Marque les candidats ready/duplicate restants en erreur (blocage d’écriture). */
