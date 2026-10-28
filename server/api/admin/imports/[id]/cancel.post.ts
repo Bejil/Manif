@@ -9,6 +9,12 @@ export default defineEventHandler(async (event) => {
   if (!id) throw notFound()
   const run = await getImportRun(id)
   if (!run) throw notFound('Import introuvable')
+  if (run.status === 'completed' || run.status === 'failed') {
+    throw createError({
+      statusCode: 409,
+      statusMessage: 'Cet import est déjà terminé.',
+    })
+  }
   const cancelled = await cancelImportRun(id)
   return { run: cancelled }
 })

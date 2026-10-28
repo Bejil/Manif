@@ -117,13 +117,18 @@ function excerpt(text: string, max = 160) {
   return `${clean.slice(0, max).trim()}…`
 }
 
+/** Coupe la boucle continue locale (reprise / lancement) dès qu’on annule. */
+const abortContinue = ref(false)
+
 async function loopContinue(runId: string) {
   let guard = 0
   while (guard++ < 2000) {
+    if (abortContinue.value) break
     const step = await $fetch<{ run: ImportRunRecord, done: boolean, step: string }>(
       `/api/admin/imports/${runId}/continue`,
       { method: 'POST', credentials: 'include' },
     )
+    if (abortContinue.value) break
     activeRunId.value = step.run.id
     await refreshRuns()
     if (step.done) {
@@ -136,6 +141,7 @@ async function loopContinue(runId: string) {
 
 async function resumeRun() {
   if (!activeRun.value) return
+  abortContinue.value = false
   busy.value = true
   errorMsg.value = null
   try {
@@ -143,7 +149,7 @@ async function resumeRun() {
     await refreshDetail()
   }
   catch {
-    errorMsg.value = 'Impossible de reprendre l’import'
+    if (!abortContinue.value) errorMsg.value = 'Impossible de reprendre l’import'
   }
   finally {
     busy.value = false
@@ -156,6 +162,7 @@ async function startImport() {
     errorMsg.value = 'Sélectionnez au moins une source.'
     return
   }
+  abortContinue.value = false
   busy.value = true
   try {
     const step = await $fetch<{ run: ImportRunRecord, done: boolean }>(
@@ -172,14 +179,17 @@ async function startImport() {
       },
     )
     activeRunId.value = step.run.id
+    autoResumeTriedFor = step.run.id
     await refreshRuns()
-    if (!step.done) await loopContinue(step.run.id)
+    if (!step.done && !abortContinue.value) await loopContinue(step.run.id)
     await refreshDetail()
   }
   catch (e: unknown) {
-    errorMsg.value = e && typeof e === 'object' && 'data' in e
-      ? String((e as { data?: { statusMessage?: string } }).data?.statusMessage || 'Échec du lancement')
-      : 'Échec du lancement'
+    if (!abortContinue.value) {
+      errorMsg.value = e && typeof e === 'object' && 'data' in e
+        ? String((e as { data?: { statusMessage?: string } }).data?.statusMessage || 'Échec du lancement')
+        : 'Échec du lancement'
+    }
   }
   finally {
     busy.value = false
@@ -227,21 +237,37 @@ function formatRunDate(iso: string | null | undefined): string {
   })
 }
 
+const cancelling = ref(false)
+
 async function cancelRun() {
-  if (!activeRun.value) return
-  busy.value = true
+  if (!activeRun.value || cancelling.value) return
+  const id = activeRun.value.id
+  abortContinue.value = true
+  autoResumeTriedFor = id
+  cancelling.value = true
+  errorMsg.value = null
   try {
-    await $fetch(`/api/admin/imports/${activeRun.value.id}/cancel`, {
+    await $fetch(`/api/admin/imports/${id}/cancel`, {
       method: 'POST',
       credentials: 'include',
     })
     await refreshRuns()
     await refreshDetail()
+    successMsg.value = 'Import annulé. Les chaînes cron s’arrêteront au prochain tick.'
+  }
+  catch {
+    errorMsg.value = 'Impossible d’annuler l’import'
   }
   finally {
+    cancelling.value = false
     busy.value = false
   }
 }
+
+const canCancelRun = computed(() => {
+  const s = activeRun.value?.status
+  return Boolean(s && RUN_LIVE.has(s))
+})
 
 async function publishApplied() {
   if (!activeRun.value) return
@@ -472,16 +498,16 @@ watch(
         <p v-if="successMsg" class="mt-4 text-sm font-semibold text-[#206C4D]">{{ successMsg }}</p>
 
         <div class="mt-6 flex flex-wrap gap-3">
-          <UiButton :disabled="busy || !selectedSources.length" @click="startImport">
+          <UiButton :disabled="busy || cancelling || !selectedSources.length" @click="startImport">
             {{ busy ? 'Import en cours…' : 'Lancer l’import' }}
           </UiButton>
           <UiButton
-            v-if="activeRun && ['running', 'scraped', 'applying'].includes(activeRun.status)"
+            v-if="canCancelRun"
             variant="outline"
-            :disabled="busy"
+            :disabled="cancelling"
             @click="cancelRun"
           >
-            Annuler
+            {{ cancelling ? 'Annulation…' : 'Arrêter l’import' }}
           </UiButton>
         </div>
 
@@ -549,10 +575,19 @@ watch(
 
             <div class="mt-4 flex flex-wrap gap-2">
               <UiButton
+                v-if="canCancelRun"
+                size="sm"
+                variant="red"
+                :disabled="cancelling"
+                @click="cancelRun"
+              >
+                {{ cancelling ? 'Annulation…' : 'Arrêter / annuler' }}
+              </UiButton>
+              <UiButton
                 v-if="showResume"
                 size="sm"
                 variant="outline"
-                :disabled="busy"
+                :disabled="busy || cancelling"
                 @click="resumeRun"
               >
                 Reprendre / finir l’écriture
@@ -560,8 +595,8 @@ watch(
               <UiButton
                 v-if="showCandidates && (activeRun.stats?.created || 0) > 0"
                 size="sm"
-                variant="red"
-                :disabled="busy"
+                variant="outline"
+                :disabled="busy || cancelling"
                 @click="publishApplied"
               >
                 Publier les nouveaux brouillons

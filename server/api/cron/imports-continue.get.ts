@@ -1,13 +1,16 @@
 import {
   chainImportContinue,
+  IMPORT_CRON_MAX_HOPS,
   parseImportCronMode,
   parseImportCronSources,
   runImportUntilBudget,
 } from '../../utils/import-cron'
+import { cancelImportRun } from '../../services/import-orchestrator'
+import { getImportRun } from '../../services/import-repository'
 
 /**
  * Suite d’un import quotidien si la première invocation a atteint le budget temps.
- * Auth : Authorization Bearer CRON_SECRET (même secret que le cron Vercel).
+ * Auth : Authorization Bearer CRON_SECRET.
  */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -28,6 +31,18 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'runId requis' })
   }
 
+  const hop = Math.max(0, Number(query.hop) || 0)
+  if (hop >= IMPORT_CRON_MAX_HOPS) {
+    await cancelImportRun(runId)
+    return { runId, done: true, reason: 'max-hops', hop }
+  }
+
+  const live = await getImportRun(runId)
+  if (!live) return { runId, done: true, reason: 'missing' }
+  if (live.status === 'cancelled' || live.status === 'failed' || live.status === 'completed') {
+    return { runId, done: true, reason: live.status, hop }
+  }
+
   const budgetMs = Math.max(30_000, Number(config.importCronBudgetMs) || 240_000)
   const outcome = await runImportUntilBudget({
     runId,
@@ -37,14 +52,16 @@ export default defineEventHandler(async (event) => {
     budgetMs,
   })
 
-  if (!outcome.done) {
+  const stopReasons = new Set(['cancelled', 'failed', 'missing', 'max-age', 'stalled', 'max-steps'])
+  if (!outcome.done && outcome.steps > 0 && !stopReasons.has(outcome.reason || '')) {
     chainImportContinue({
       runId: outcome.runId,
       siteUrl: String(config.public.siteUrl || ''),
       cronSecret: secret,
+      hop,
     })
   }
 
-  console.info('[cron:imports] continue', outcome)
-  return outcome
+  console.info('[cron:imports] continue', { ...outcome, hop })
+  return { ...outcome, hop }
 })

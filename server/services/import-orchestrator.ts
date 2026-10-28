@@ -19,6 +19,7 @@ import {
   getImportRun,
   getPendingCandidates,
   insertCandidates,
+  failReadyCandidates,
   recountImportWriteStats,
   updateCandidate,
   updateImportRun,
@@ -397,8 +398,27 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
   const { items } = await listCandidatesForApply(runId, 20)
   if (!items.length) {
     const still = await countCandidatesByStatuses(runId, ['ready', 'duplicate'])
-    // Course possible avec une autre invocation : retenter plutôt que planter le cron
-    if (still > 0) return { exhausted: false }
+    if (still > 0) {
+      // Candidats comptés mais non listables → éviter une boucle infinie
+      const failed = await failReadyCandidates(
+        runId,
+        'Écriture impossible (candidat inaccessible) — marqué en erreur',
+      )
+      const live = await getImportRun(runId)
+      if (live) {
+        await updateImportRun(runId, {
+          stats: {
+            ...live.stats,
+            errors: (live.stats.errors || 0) + failed,
+          },
+          progress: {
+            ...live.progress,
+            message: `${failed} candidat(s) bloqué(s) marqué(s) en erreur`,
+            phase: 'apply',
+          },
+        })
+      }
+    }
     return { exhausted: true }
   }
 
@@ -611,14 +631,19 @@ async function loadSlugSet(): Promise<Set<string>> {
 }
 
 export async function cancelImportRun(runId: string) {
+  const run = await getImportRun(runId)
+  if (!run) throw createError({ statusCode: 404, statusMessage: 'Import introuvable' })
+  if (run.status === 'cancelled') return run
+  if (run.status === 'completed' || run.status === 'failed') {
+    return run
+  }
   return updateImportRun(runId, {
     status: 'cancelled',
     finishedAt: nowIso(),
     progress: {
-      cursor: 0,
-      totalUnits: 0,
-      unitsDone: [],
-      message: 'Annulé',
+      ...run.progress,
+      message: 'Import annulé',
+      phase: run.progress.phase || 'done',
     },
   })
 }

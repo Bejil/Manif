@@ -40,11 +40,14 @@ export default defineEventHandler(async (event) => {
     budgetMs,
   })
 
-  if (!outcome.done) {
+  // Enchaîner si budget temps dépassé ; pas si annulé / bloqué / trop vieux
+  const stopReasons = new Set(['cancelled', 'failed', 'missing', 'max-age', 'stalled', 'max-steps'])
+  if (!outcome.done && outcome.steps > 0 && !stopReasons.has(outcome.reason || '')) {
     chainImportContinue({
       runId: outcome.runId,
       siteUrl: String(config.public.siteUrl || ''),
       cronSecret: secret,
+      hop: 0,
     })
   }
 

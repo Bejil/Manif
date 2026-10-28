@@ -425,6 +425,38 @@ export async function recountImportWriteStats(runId: string): Promise<{
   return { ready, duplicates, created, updated, skipped, errors }
 }
 
+/** Marque les candidats ready/duplicate restants en erreur (blocage d’écriture). */
+export async function failReadyCandidates(
+  runId: string,
+  errorMessage: string,
+): Promise<number> {
+  if (useMockDb()) {
+    const store = ensureMockImports()
+    let n = 0
+    for (const c of store.importCandidates) {
+      if (c.runId !== runId) continue
+      if (c.status !== 'ready' && c.status !== 'duplicate') continue
+      c.status = 'error'
+      c.errorMessage = errorMessage
+      c.updatedAt = nowIso()
+      n++
+    }
+    return n
+  }
+  const { data, error } = await getServiceSupabase()
+    .from('import_candidates')
+    .update({
+      status: 'error',
+      error_message: errorMessage,
+      updated_at: nowIso(),
+    })
+    .eq('run_id', runId)
+    .in('status', ['ready', 'duplicate'])
+    .select('id')
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  return data?.length ?? 0
+}
+
 export async function updateCandidate(
   id: string,
   patch: Partial<ImportCandidateRecord>,
