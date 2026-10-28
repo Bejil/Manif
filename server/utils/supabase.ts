@@ -62,6 +62,11 @@ function assertServiceRoleKey(key: string) {
   }
 }
 
+/**
+ * Client serveur exclusif (bypass RLS).
+ * Authorization est figé sur la clé secret/service_role : une session utilisateur
+ * (ex. signInWithPassword) ne doit jamais remplacer ce header.
+ */
 export function getServiceSupabase(): SupabaseClient {
   const { url, key } = resolveSupabaseConfig()
   if (!url || !key) {
@@ -74,14 +79,44 @@ export function getServiceSupabase(): SupabaseClient {
 
   if (!cached || cachedKey !== key) {
     cached = createClient(url, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${key}`,
+        },
+      },
     })
     cachedKey = key
   }
   return cached
 }
 
+/**
+ * Client éphémère pour Auth (login admin) — ne partage JAMAIS le cache service,
+ * sinon la session utilisateur pollue les écritures et déclenche le RLS.
+ */
+export function createAuthSupabase(): SupabaseClient {
+  const { url, key } = resolveSupabaseConfig()
+  if (!url || !key) {
+    throw createError({
+      statusCode: 503,
+      statusMessage: 'Supabase non configuré (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)',
+    })
+  }
+  return createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
+}
+
+/** @deprecated Préférer createAuthSupabase() pour le login ; getServiceSupabase() pour la DB. */
 export function getAuthSupabase(): SupabaseClient {
-  // Même client service pour vérifier les sessions admin côté serveur
-  return getServiceSupabase()
+  return createAuthSupabase()
 }

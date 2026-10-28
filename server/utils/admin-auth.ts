@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { getCookie, setCookie, deleteCookie } from 'h3'
 import { unauthorized } from './errors'
-import { getServiceSupabase, useMockDb } from './supabase'
+import { createAuthSupabase, useMockDb } from './supabase'
 
 const COOKIE_NAME = 'manif_admin_session'
 const SUPABASE_ACCESS = 'manif_admin_access'
@@ -98,20 +98,24 @@ export async function loginAdmin(
     && !useMockDb()
 
   if (canUseSupabase) {
+    // Client dédié : ne jamais appeler signIn sur getServiceSupabase()
+    // (sinon le JWT user remplace service_role → INSERT events bloqué par RLS).
     try {
-      const supabase = getServiceSupabase()
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      const authClient = createAuthSupabase()
+      const { data, error } = await authClient.auth.signInWithPassword({ email, password })
       if (!error && data.session) {
         const allowed = String(config.adminEmail || '').toLowerCase()
         const allowAny = process.env.ADMIN_ALLOW_ANY === 'true'
         if (!allowAny && allowed && email.toLowerCase() !== allowed) {
-          await supabase.auth.admin.signOut(data.session.access_token)
+          await authClient.auth.signOut()
           throw unauthorized('Compte non autorisé pour l\'administration')
         }
         setSessionCookies(event, email, {
           access: data.session.access_token,
           refresh: data.session.refresh_token,
         })
+        // Nettoie la session mémoire de ce client jetable
+        await authClient.auth.signOut().catch(() => undefined)
         return { ok: true }
       }
       if (import.meta.dev) {

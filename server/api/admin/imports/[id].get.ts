@@ -8,6 +8,8 @@ import {
 import { getEventById } from '../../../services/events-repository'
 import type { PublicationStatus } from '#shared/constants/statuses'
 
+const KINDS = new Set(['scraped', 'new', 'duplicates', 'updated', 'errors', 'all'])
+
 export default defineEventHandler(async (event) => {
   requireAdmin(event)
   const id = getRouterParam(event, 'id')
@@ -20,17 +22,19 @@ export default defineEventHandler(async (event) => {
   const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 30))
 
   const kindRaw = typeof query.kind === 'string' ? query.kind : ''
-  const kind = kindRaw === 'updated' || kindRaw === 'all' ? kindRaw : 'new'
-
-  // Compat : onlyNew=0 → all
   const legacyAll = query.onlyNew === '0' || query.onlyNew === 'false'
-  const effectiveKind = legacyAll ? 'all' : kind
+  const effectiveKind = legacyAll
+    ? 'all'
+    : (KINDS.has(kindRaw) ? kindRaw : 'new')
 
   const candidates = await listCandidates(id, {
     limit: pageSize,
     offset: (page - 1) * pageSize,
     onlyNew: effectiveKind === 'new',
     onlyUpdated: effectiveKind === 'updated',
+    status: effectiveKind === 'errors' ? 'error' : undefined,
+    statuses: effectiveKind === 'duplicates' ? ['duplicate'] : undefined,
+    // scraped / all : pas de filtre
   })
 
   const items = await Promise.all(candidates.items.map(async (c) => {
