@@ -16,7 +16,7 @@ import {
   buildVerificationEmail,
   sendEmail,
 } from './email'
-import { geocodeCityCenter, geocodeFrenchPlace } from './geocoding'
+import { geocodeCityCenter, geocodeFrenchPlace, requireGeocodedPlace } from './geocoding'
 import { getMockStore, newId, nowIso, seedMockStore } from './mock-store'
 import { buildDemoEvents } from './seed-data'
 import { listEntityHistory, type AdminHistoryEntry } from './admin-audit'
@@ -145,6 +145,11 @@ export async function createSubmission(input: {
   siteUrl: string
 }) {
   ensureSeeded()
+  // Refuse dès la proposition si le lieu n’est pas géocodable (BAN)
+  await requireGeocodedPlace({
+    cityName: input.cityName,
+    locationName: input.locationName,
+  })
   const rawToken = randomToken(32)
   const digest = digestVerificationToken(rawToken, input.pepper)
   const now = nowIso()
@@ -437,7 +442,7 @@ export async function approveSubmission(id: string, actorId: string) {
     throw badRequest('Cette proposition n\'est pas en attente de modération.')
   }
 
-  const geo = await geocodeFrenchPlace({
+  const geo = await requireGeocodedPlace({
     cityName: submission.cityName,
     locationName: submission.locationName,
   })
@@ -464,14 +469,14 @@ export async function approveSubmission(id: string, actorId: string) {
       ? `${submission.description}\n\nInformations pratiques : ${submission.practicalInfo}`
       : submission.description,
     category: submission.category,
-    cityName: geo?.cityName || submission.cityName,
-    postalCode: geo?.postalCode ?? null,
+    cityName: geo.cityName || submission.cityName,
+    postalCode: geo.postalCode ?? null,
     localityCode: null,
     countryCode: 'FR',
-    timezone: geo?.timezone || timezoneFromPostalOrCity(null, submission.cityName),
+    timezone: geo.timezone || timezoneFromPostalOrCity(null, submission.cityName),
     locationName: submission.locationName,
-    latitude: geo?.latitude ?? null,
-    longitude: geo?.longitude ?? null,
+    latitude: geo.latitude,
+    longitude: geo.longitude,
     locationRevealAt: computeLocationRevealAt(
       submission.startAt,
       submission.locationRevealHoursBefore,
@@ -863,6 +868,10 @@ export async function updateSubmissionAfterChanges(input: {
   practicalInfo?: string
 }) {
   const submission = await loadSubmissionByEditToken(input.editToken, input.pepper)
+  await requireGeocodedPlace({
+    cityName: input.cityName,
+    locationName: input.locationName,
+  })
   const now = nowIso()
 
   const nextValues = {

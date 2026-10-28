@@ -30,7 +30,6 @@ export default defineEventHandler(async (event) => {
   const published = allEvents.filter(e => e.publicationStatus === 'published')
   const unpublished = allEvents.filter(e => e.publicationStatus === 'unpublished')
   const draft = allEvents.filter(e => e.publicationStatus === 'draft')
-  const withoutCoords = published.filter(e => e.latitude == null || e.longitude == null)
   const dateToConfirm = published.filter(e => !e.startAt)
 
   const eventsByStatus = {
@@ -67,7 +66,6 @@ export default defineEventHandler(async (event) => {
     pendingSubmissions: submissionsByStatus.pending_moderation,
     publishedEvents: published.length,
     openReports,
-    eventsWithoutCoords: withoutCoords.length,
     countingAnomalies: anomalies,
     submissions: {
       total: submissions.length,
@@ -78,7 +76,6 @@ export default defineEventHandler(async (event) => {
       published: published.length,
       unpublished: unpublished.length,
       draft: draft.length,
-      withoutCoords: withoutCoords.length,
       dateToConfirm: dateToConfirm.length,
       byStatus: eventsByStatus,
       supports,

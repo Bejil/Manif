@@ -41,7 +41,6 @@ type Dashboard = {
   pendingSubmissions: number
   publishedEvents: number
   openReports: number
-  eventsWithoutCoords: number
   countingAnomalies: string[]
   submissions: {
     total: number
@@ -56,7 +55,6 @@ type Dashboard = {
     published: number
     unpublished: number
     draft: number
-    withoutCoords: number
     dateToConfirm: number
     byStatus: {
       upcoming: number
@@ -89,7 +87,7 @@ const heroStats = computed(() => [
     accent: 'border-l-[#9C6EE8]',
   },
   {
-    to: '/admin/evenements',
+    to: '/admin/evenements?publication=published',
     value: dash.value?.publishedEvents,
     label: 'Manifestations publiées',
     accent: 'border-l-[#D1271C]',
@@ -99,12 +97,6 @@ const heroStats = computed(() => [
     value: dash.value?.openReports,
     label: 'Signalements ouverts',
     accent: 'border-l-[#805200]',
-  },
-  {
-    to: '/admin/evenements',
-    value: dash.value?.eventsWithoutCoords,
-    label: 'Sans coordonnées',
-    accent: 'border-l-[#636363]',
   },
 ])
 
@@ -160,7 +152,7 @@ function fmt(n: number | undefined | null) {
         <UiButton variant="outline" size="sm" @click="logout">Déconnexion</UiButton>
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <NuxtLink
           v-for="stat in heroStats"
           :key="stat.label"
@@ -239,10 +231,6 @@ function fmt(n: number | undefined | null) {
             <div>
               <dt class="text-[#636363]">Date à confirmer</dt>
               <dd class="mt-0.5 font-bold tabular-nums text-[#111111]">{{ fmt(dash?.events?.dateToConfirm) }}</dd>
-            </div>
-            <div>
-              <dt class="text-[#636363]">Sans coordonnées</dt>
-              <dd class="mt-0.5 font-bold tabular-nums text-[#111111]">{{ fmt(dash?.events?.withoutCoords) }}</dd>
             </div>
           </dl>
           <ul class="mt-5 divide-y divide-[#DDDAD3] border-t border-[#DDDAD3]">

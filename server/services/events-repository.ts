@@ -247,6 +247,7 @@ function filterAdminEvents(
     category?: string
     statuses?: string[]
     publication?: string
+    withoutCoords?: boolean
   },
 ): EventPublic[] {
   let items = events
@@ -271,6 +272,9 @@ function filterAdminEvents(
   if (opts.publication) {
     items = items.filter(e => e.publicationStatus === opts.publication)
   }
+  if (opts.withoutCoords) {
+    items = items.filter(e => e.latitude == null || e.longitude == null)
+  }
   return items
 }
 
@@ -281,6 +285,7 @@ export async function listEventsAdmin(opts: {
   category?: string
   statuses?: string[]
   publication?: string
+  withoutCoords?: boolean
   /** Liste complète (ex. fusion) — sans compteurs */
   all?: boolean
 }): Promise<{ items: EventPublic[], total: number, page: number, pageSize: number }> {

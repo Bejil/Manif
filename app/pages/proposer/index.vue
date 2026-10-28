@@ -299,13 +299,20 @@ async function onSubmit() {
           :options="EVENT_CATEGORIES.map(c => ({ value: c.id, label: c.label }))"
         />
         <div class="grid gap-4 sm:grid-cols-2">
-          <UiInput id="city" v-model="form.cityName" label="Ville" required @blur="checkSimilar" />
+          <UiInput
+            id="city"
+            v-model="form.cityName"
+            label="Ville"
+            required
+            hint="Ville française reconnue (géocodage BAN obligatoire)."
+            @blur="checkSimilar"
+          />
           <UiInput
             id="location"
             v-model="form.locationName"
             label="Lieu de rassemblement"
             required
-            hint="Toujours renseigné pour la modération. Peut rester masqué au public jusqu’à une heure choisie."
+            hint="Place, rue, mairie… doit être localisable. Peut rester masqué au public jusqu’à l’heure choisie."
           />
         </div>
         <label class="flex cursor-pointer items-start gap-2 rounded-[4px] border border-[#DDDAD3] bg-[#F4F1EA] p-3 text-sm">

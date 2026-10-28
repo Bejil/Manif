@@ -10,7 +10,7 @@ import type {
 import { createEventSlug, ensureUniqueSlug } from '#shared/utils/slug'
 import { diffImportUpdate } from '#shared/utils/import-diff'
 import { timezoneFromPostalOrCity } from '../utils/timezone'
-import { geocodeFrenchPlace } from './geocoding'
+import { LOCATION_REQUIRED_MESSAGE, geocodeFrenchPlace } from './geocoding'
 import { buildImportWorkUnits } from './importers'
 import {
   countCandidatesByStatuses,
@@ -395,6 +395,20 @@ async function prepareCandidatesBatch(runId: string, doGeocode: boolean) {
         }
       }
 
+      if (lat == null || lon == null) {
+        await updateCandidate(c.id, {
+          status: 'error',
+          latitude: lat,
+          longitude: lon,
+          postalCode: postal,
+          cityName: city,
+          timezone: tz,
+          errorMessage: LOCATION_REQUIRED_MESSAGE,
+        })
+        errors++
+        continue
+      }
+
       const match = await findImportMatch({
         sourceUrl: c.sourceUrl,
         title: c.title,
@@ -411,6 +425,7 @@ async function prepareCandidatesBatch(runId: string, doGeocode: boolean) {
           postalCode: postal,
           cityName: city,
           timezone: tz,
+          errorMessage: null,
           payload: {
             ...c.payload,
             matchReason: match.reason,
@@ -427,6 +442,7 @@ async function prepareCandidatesBatch(runId: string, doGeocode: boolean) {
           postalCode: postal,
           cityName: city,
           timezone: tz,
+          errorMessage: null,
         })
         ready++
       }
@@ -529,6 +545,16 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
         }
         const reason = matchReason || 'source_url'
         const nextSourceUrl = reason === 'source_url' ? c.sourceUrl : (existing.sourceUrl || c.sourceUrl)
+        const nextLat = c.latitude ?? existing.latitude
+        const nextLon = c.longitude ?? existing.longitude
+        if (nextLat == null || nextLon == null) {
+          await updateCandidate(c.id, {
+            status: 'error',
+            errorMessage: LOCATION_REQUIRED_MESSAGE,
+          })
+          errors++
+          continue
+        }
         const patched: EventRecord = {
           ...existing,
           title: c.title,
@@ -537,8 +563,8 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
           cityName: c.cityName,
           postalCode: c.postalCode,
           locationName: c.locationName,
-          latitude: c.latitude,
-          longitude: c.longitude,
+          latitude: nextLat,
+          longitude: nextLon,
           startAt,
           endAt,
           endIsEstimated: c.endIsEstimated !== false,
@@ -606,6 +632,15 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
       if (c.status !== 'ready' && c.status !== 'duplicate') {
         await updateCandidate(c.id, { status: 'skipped' })
         skipped++
+        continue
+      }
+
+      if (c.latitude == null || c.longitude == null) {
+        await updateCandidate(c.id, {
+          status: 'error',
+          errorMessage: LOCATION_REQUIRED_MESSAGE,
+        })
+        errors++
         continue
       }
 

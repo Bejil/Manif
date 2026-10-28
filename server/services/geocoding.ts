@@ -1,3 +1,4 @@
+import { createError } from 'h3'
 import { timezoneFromPostalOrCity } from '../utils/timezone'
 
 export interface GeocodeResult {
@@ -79,6 +80,46 @@ export async function geocodeCityCenter(input: {
     cityCenterCache.set(key, null)
     return null
   }
+}
+
+/** Message partagé imports / propositions. */
+export const LOCATION_REQUIRED_MESSAGE
+  = 'Localisation introuvable. Indiquez une ville et un lieu français reconnus (ex. place, rue, mairie).'
+
+/**
+ * Exige des coordonnées BAN. Échoue si ville/lieu non géocodables.
+ */
+export async function requireGeocodedPlace(input: {
+  cityName: string
+  locationName?: string
+  postalCode?: string
+}): Promise<GeocodeResult> {
+  const cityName = input.cityName.trim()
+  const locationName = input.locationName?.trim() || ''
+  if (cityName.length < 2) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'La ville est obligatoire pour localiser la manifestation.',
+    })
+  }
+  if (locationName.length < 2) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Le lieu de rassemblement est obligatoire et doit pouvoir être localisé.',
+    })
+  }
+  const geo = await geocodeFrenchPlace({
+    cityName,
+    locationName,
+    postalCode: input.postalCode,
+  })
+  if (!geo || geo.latitude == null || geo.longitude == null) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: LOCATION_REQUIRED_MESSAGE,
+    })
+  }
+  return geo
 }
 
 /**
