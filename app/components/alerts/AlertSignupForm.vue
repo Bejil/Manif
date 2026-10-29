@@ -111,6 +111,12 @@ function pickSuggestion(item: (typeof suggestions.value)[number]) {
   suggestOpen.value = false
 }
 
+function onLocationBlur() {
+  window.setTimeout(() => {
+    suggestOpen.value = false
+  }, 180)
+}
+
 function resetForm() {
   done.value = null
   submittedEmail.value = ''
@@ -262,7 +268,7 @@ onBeforeUnmount(() => {
           class="min-h-[48px] w-full rounded-[4px] border-2 border-[#DDDAD3] bg-white px-3.5 py-2.5 text-[#111111] placeholder:text-[#636363] focus:border-[#6735B6] focus:outline-none focus:ring-2 focus:ring-[#9C6EE8]/35"
           @input="onLocationInput(($event.target as HTMLInputElement).value)"
           @focus="suggestOpen = suggestions.length > 0"
-          @blur="setTimeout(() => { suggestOpen = false }, 180)"
+          @blur="onLocationBlur"
         >
         <p
           v-if="suggestPending"

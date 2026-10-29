@@ -11,7 +11,7 @@ export interface GeoSuggestItem {
 }
 
 /**
- * Autocomplete public (BAN) — municipalités / localités.
+ * Autocomplete public (BAN) — villes uniquement (type municipality).
  */
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -31,6 +31,7 @@ export default defineEventHandler(async (event) => {
           city?: string
           postcode?: string
           name?: string
+          type?: string
         }
         geometry: { coordinates: [number, number] }
       }>
@@ -39,20 +40,26 @@ export default defineEventHandler(async (event) => {
         q,
         limit: 5,
         autocomplete: 1,
+        type: 'municipality',
       },
       timeout: 6_000,
     })
 
-    const items: GeoSuggestItem[] = (res.features || []).map((f) => {
-      const [longitude, latitude] = f.geometry.coordinates
-      return {
-        label: f.properties.label,
-        cityName: f.properties.city || f.properties.name || f.properties.label,
-        postalCode: f.properties.postcode || null,
-        latitude,
-        longitude,
-      }
-    })
+    const items: GeoSuggestItem[] = (res.features || [])
+      .filter(f => !f.properties.type || f.properties.type === 'municipality')
+      .map((f) => {
+        const [longitude, latitude] = f.geometry.coordinates
+        const cityName = f.properties.city || f.properties.name || f.properties.label
+        const postal = f.properties.postcode || null
+        const label = postal ? `${cityName} (${postal})` : cityName
+        return {
+          label,
+          cityName,
+          postalCode: postal,
+          latitude,
+          longitude,
+        }
+      })
 
     return { items }
   }
@@ -61,3 +68,4 @@ export default defineEventHandler(async (event) => {
     return { items: [] as GeoSuggestItem[] }
   }
 })
+
