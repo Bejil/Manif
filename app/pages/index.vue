@@ -47,6 +47,7 @@ const {
   suggestions,
   visible: suggestionsVisible,
   pending: suggestionsPending,
+  personalized: suggestionsPersonalized,
 } = useHomeSuggestions()
 
 function onMapSelect(id: string) {
@@ -226,25 +227,35 @@ const engagementBlocks = [
       </div>
     </section>
 
-    <!-- SUGGESTIONS PERSONNALISÉES -->
+    <!-- SUGGESTIONS (personnalisées ou prochaines) -->
     <ClientOnly>
       <section
-        v-if="suggestionsVisible || suggestionsPending"
+        v-if="suggestionsVisible"
         class="border-t border-[#DDDAD3] bg-[#FFFCF4]"
       >
         <div class="container-page py-10 md:py-14">
           <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#6735B6]">Pour vous</p>
+              <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#6735B6]">
+                {{ suggestionsPersonalized ? 'Pour vous' : 'À venir' }}
+              </p>
               <h2 class="mf-display mf-h2 mt-2 text-[#111111]">
-                Suggestions
+                {{ suggestionsPersonalized ? 'Suggestions' : 'Prochaines manifestations' }}
               </h2>
               <p class="mt-2 max-w-xl text-sm text-[#454545]">
-                Cinq manifestations à venir, proches de celles que vous soutenez ou auxquelles vous participez.
+                <template v-if="suggestionsPersonalized">
+                  Cinq manifestations à venir, proches de celles que vous soutenez ou auxquelles vous participez.
+                </template>
+                <template v-else>
+                  Les prochaines manifestations à ne pas manquer. Soutenez ou participez pour des suggestions plus proches de vous.
+                </template>
               </p>
             </div>
-            <NuxtLink to="/mes-manifestations" class="text-sm font-bold text-[#6735B6] hover:underline">
-              Mes manifestations
+            <NuxtLink
+              :to="suggestionsPersonalized ? '/mes-manifestations' : '/manifestations'"
+              class="text-sm font-bold text-[#6735B6] hover:underline"
+            >
+              {{ suggestionsPersonalized ? 'Mes manifestations' : 'Voir tout l’agenda' }}
             </NuxtLink>
           </div>
 
@@ -252,7 +263,7 @@ const engagementBlocks = [
             v-if="suggestionsPending && !suggestions.length"
             class="mt-8 text-sm text-[#454545]"
           >
-            Chargement des suggestions…
+            Chargement…
           </p>
 
           <div

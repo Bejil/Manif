@@ -23,9 +23,16 @@ function scoreCandidate(candidate: EventPublic, seeds: EventPublic[]) {
   return score
 }
 
+function byStartThenTitle(a: EventPublic, b: EventPublic) {
+  const da = a.startAt || ''
+  const db = b.startAt || ''
+  return da.localeCompare(db) || a.title.localeCompare(b.title, 'fr')
+}
+
 /**
- * Suggestions home : 5 événements à venir, proches des manifs
- * que l’utilisateur soutient ou auxquelles il participe.
+ * Suggestions home :
+ * - avec engagements : 5 à venir proches des manifs soutenues / participées
+ * - sans engagement : 5 prochaines manifestations à venir
  */
 export function useHomeSuggestions() {
   const { engagedIds, refresh } = useMyEngagements()
@@ -33,6 +40,8 @@ export function useHomeSuggestions() {
   onMounted(() => {
     refresh()
   })
+
+  const personalized = computed(() => engagedIds.value.length > 0)
 
   const seedParams = computed(() => {
     if (!engagedIds.value.length) return null
@@ -56,14 +65,13 @@ export function useHomeSuggestions() {
   )
 
   const { data: upcomingData, pending } = useFetch<{ items: EventPublic[] }>(
-    () => (engagedIds.value.length ? '/api/events' : null),
+    '/api/events',
     {
       query: {
         statuses: 'upcoming',
         page: 1,
         pageSize: 120,
       },
-      watch: [engagedIds],
       server: false,
       lazy: true,
       default: () => ({ items: [] }),
@@ -72,20 +80,20 @@ export function useHomeSuggestions() {
 
   const suggestions = computed(() => {
     const engaged = new Set(engagedIds.value)
-    if (!engaged.size) return [] as EventPublic[]
-
-    const seeds = (seedData.value?.items ?? []).filter(e => engaged.has(e.id))
     const pool = (upcomingData.value?.items ?? []).filter(
       e => e.displayStatus === 'upcoming' && !engaged.has(e.id),
     )
 
+    if (!engaged.size) {
+      return [...pool].sort(byStartThenTitle).slice(0, SUGGESTION_COUNT)
+    }
+
+    const seeds = (seedData.value?.items ?? []).filter(e => engaged.has(e.id))
     const ranked = pool
       .map(e => ({ e, score: seeds.length ? scoreCandidate(e, seeds) : 0 }))
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score
-        const da = a.e.startAt || ''
-        const db = b.e.startAt || ''
-        return da.localeCompare(db) || a.e.title.localeCompare(b.e.title, 'fr')
+        return byStartThenTitle(a.e, b.e)
       })
       .map(x => x.e)
 
@@ -93,12 +101,13 @@ export function useHomeSuggestions() {
   })
 
   const visible = computed(
-    () => engagedIds.value.length > 0 && suggestions.value.length > 0,
+    () => pending.value || suggestions.value.length > 0,
   )
 
   return {
     suggestions,
     visible,
     pending,
+    personalized,
   }
 }
