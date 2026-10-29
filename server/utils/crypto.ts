@@ -25,6 +25,14 @@ export function digestEditToken(token: string, pepper: string): string {
   return sha256Hex(`edit:${token}:${pepper}`)
 }
 
+export function digestAlertConfirmToken(token: string, pepper: string): string {
+  return sha256Hex(`alert-confirm:${token}:${pepper}`)
+}
+
+export function digestAlertUnsubscribeToken(token: string, pepper: string): string {
+  return sha256Hex(`alert-unsub:${token}:${pepper}`)
+}
+
 export function safeEqualHex(a: string, b: string): boolean {
   try {
     const ba = Buffer.from(a, 'hex')

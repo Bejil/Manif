@@ -1,7 +1,7 @@
 import { getRequestIP } from 'h3'
 import type { H3Event } from 'h3'
 
-export type TurnstileAction = 'propose' | 'report' | 'engage'
+export type TurnstileAction = 'propose' | 'report' | 'engage' | 'alert'
 
 /**
  * Vérifie Cloudflare Turnstile côté serveur (siteverify canonique).

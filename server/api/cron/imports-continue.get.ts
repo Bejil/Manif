@@ -5,11 +5,13 @@ import {
   parseImportCronSources,
   runImportUntilBudget,
 } from '../../utils/import-cron'
+import { runAlertsCronStep } from '../../utils/alerts-cron'
 import { cancelImportRun } from '../../services/import-orchestrator'
 import { getImportRun } from '../../services/import-repository'
 
 /**
  * Suite d’un import quotidien si la première invocation a atteint le budget temps.
+ * À la fin du pipeline, lance les digests d’alertes.
  * Auth : Authorization Bearer CRON_SECRET.
  */
 export default defineEventHandler(async (event) => {
@@ -34,13 +36,18 @@ export default defineEventHandler(async (event) => {
   const hop = Math.max(0, Number(query.hop) || 0)
   if (hop >= IMPORT_CRON_MAX_HOPS) {
     await cancelImportRun(runId)
-    return { runId, done: true, reason: 'max-hops', hop }
+    const alerts = await runAlertsCronStep()
+    return { runId, done: true, reason: 'max-hops', hop, alerts }
   }
 
   const live = await getImportRun(runId)
-  if (!live) return { runId, done: true, reason: 'missing' }
+  if (!live) {
+    const alerts = await runAlertsCronStep()
+    return { runId, done: true, reason: 'missing', alerts }
+  }
   if (live.status === 'cancelled' || live.status === 'failed' || live.status === 'completed') {
-    return { runId, done: true, reason: live.status, hop }
+    const alerts = await runAlertsCronStep()
+    return { runId, done: true, reason: live.status, hop, alerts }
   }
 
   const budgetMs = Math.max(30_000, Number(config.importCronBudgetMs) || 240_000)
@@ -53,15 +60,22 @@ export default defineEventHandler(async (event) => {
   })
 
   const stopReasons = new Set(['cancelled', 'failed', 'missing', 'max-age', 'stalled', 'max-steps'])
-  if (!outcome.done && outcome.steps > 0 && !stopReasons.has(outcome.reason || '')) {
+  const shouldChain = !outcome.done
+    && outcome.steps > 0
+    && !stopReasons.has(outcome.reason || '')
+
+  if (shouldChain) {
     chainImportContinue({
       runId: outcome.runId,
       siteUrl: String(config.public.siteUrl || ''),
       cronSecret: secret,
       hop,
     })
+    console.info('[cron:imports] continue', { ...outcome, hop })
+    return { ...outcome, hop, alerts: { deferred: true, reason: 'continue' } }
   }
 
+  const alerts = await runAlertsCronStep()
   console.info('[cron:imports] continue', { ...outcome, hop })
-  return { ...outcome, hop }
+  return { ...outcome, hop, alerts }
 })

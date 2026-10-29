@@ -61,6 +61,27 @@ function closePreview() {
 
 const openFaq = ref<number | null>(0)
 
+const route = useRoute()
+const alertFlash = computed(() => {
+  const v = route.query.alertes
+  if (v === 'confirmed') {
+    return { tone: 'ok' as const, text: 'Alerte activée. Vous serez prévenu·e des nouvelles manifestations dans votre zone.' }
+  }
+  if (v === 'unsubscribed') {
+    return { tone: 'ok' as const, text: 'Vous êtes désinscrit·e des alertes e-mail.' }
+  }
+  if (v === 'invalid') {
+    return { tone: 'err' as const, text: 'Lien d’alerte invalide ou expiré.' }
+  }
+  return null
+})
+
+onMounted(() => {
+  if (route.hash === '#alertes' || route.query.alertes) {
+    document.getElementById('alertes')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+})
+
 const { share } = useShare()
 const shareMsg = ref<string | null>(null)
 
@@ -280,6 +301,40 @@ const engagementBlocks = [
         </div>
       </section>
     </ClientOnly>
+
+    <!-- ALERTES E-MAIL -->
+    <section
+      id="alertes"
+      class="border-t border-[#DDDAD3] bg-white"
+    >
+      <div class="container-page py-10 md:py-14">
+        <div class="grid items-start gap-10 lg:grid-cols-2">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">Alertes</p>
+            <h2 class="mf-display mf-h2 mt-2 text-[#111111]">
+              Soyez alerté·e près<br>de chez vous
+            </h2>
+            <p class="mt-4 max-w-md text-sm text-[#454545]">
+              Choisissez un lieu et un rayon. Dès qu’une nouvelle manifestation est publiée dans la zone, vous recevez un e-mail.
+              Sans compte. Désinscription en un clic.
+            </p>
+            <p
+              v-if="alertFlash"
+              class="mt-4 rounded-[4px] px-3 py-2 text-sm"
+              :class="alertFlash.tone === 'ok'
+                ? 'bg-[#E7F6EF] text-[#206C4D]'
+                : 'bg-[#FDF2F0] text-[#AD291F]'"
+              role="status"
+            >
+              {{ alertFlash.text }}
+            </p>
+          </div>
+          <div class="rounded-[8px] border border-[#DDDAD3] bg-[#FFFCF4] p-5 shadow-soft">
+            <AlertSignupForm id-prefix="home-alert" />
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- SOUTENIR ≠ PARTICIPER -->
     <section class="border-y border-[#DDDAD3] bg-[#111111] text-[#FFFCF4]">

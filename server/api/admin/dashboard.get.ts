@@ -2,16 +2,18 @@ import { requireAdmin } from '../../utils/admin-auth'
 import { listAllEventsAdmin } from '../../services/events-repository'
 import { listAllSubmissionsAdmin } from '../../services/submissions-repository'
 import { countOpenReports } from '../../services/reports-repository'
+import { listAlertsAdmin } from '../../services/alerts-repository'
 import { useMockDb } from '../../utils/supabase'
 import { getMockStore } from '../../services/mock-store'
 
 export default defineEventHandler(async (event) => {
   requireAdmin(event)
 
-  const [submissions, allEvents, openReports] = await Promise.all([
+  const [submissions, allEvents, openReports, alerts] = await Promise.all([
     listAllSubmissionsAdmin(),
     listAllEventsAdmin(),
     countOpenReports(),
+    listAlertsAdmin({ status: 'all' }),
   ])
 
   const submissionsByStatus = {
@@ -66,6 +68,8 @@ export default defineEventHandler(async (event) => {
     pendingSubmissions: submissionsByStatus.pending_moderation,
     publishedEvents: published.length,
     openReports,
+    activeAlerts: alerts.counts.active,
+    pendingAlerts: alerts.counts.pending,
     countingAnomalies: anomalies,
     submissions: {
       total: submissions.length,
@@ -83,3 +87,4 @@ export default defineEventHandler(async (event) => {
     },
   }
 })
+

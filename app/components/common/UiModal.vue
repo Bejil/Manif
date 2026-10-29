@@ -22,7 +22,7 @@ function onClose() {
 <template>
   <dialog
     ref="dialog"
-    class="w-[min(100%,28rem)] rounded-xl border-0 bg-white p-0 shadow-soft backdrop:bg-brand-deep/40"
+    class="m-auto max-h-[min(92vh,40rem)] w-[min(calc(100%-1.5rem),28rem)] overflow-y-auto rounded-xl border-0 bg-white p-0 shadow-soft backdrop:bg-brand-deep/40"
     @close="onClose"
   >
     <div class="p-5">
@@ -30,7 +30,7 @@ function onClose() {
         <h2 class="text-lg font-semibold text-brand-deep">{{ title }}</h2>
         <button
           type="button"
-          class="rounded-md p-1 text-ink-muted hover:bg-surface-muted hover:text-ink"
+          class="shrink-0 rounded-md p-1 text-ink-muted hover:bg-surface-muted hover:text-ink"
           aria-label="Fermer"
           @click="dialog?.close()"
         >

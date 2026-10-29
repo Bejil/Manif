@@ -7,6 +7,7 @@
     <AppFooter />
     <ClientOnly>
       <KofiOverlayWidget />
+      <AlertSignupModal />
     </ClientOnly>
   </div>
 </template>

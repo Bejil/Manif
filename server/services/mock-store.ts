@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { EventRecord } from '#shared/types/event'
 import type { EngagementRecord } from '#shared/types/engagement'
 import type { EventSubmissionRecord } from '#shared/types/submission'
+import type { EventAlertRecord } from '#shared/types/alert'
 import type { ReportReasonId } from '#shared/constants/statuses'
 
 export interface ReportRecord {
@@ -32,6 +33,7 @@ export interface MockStore {
   engagements: EngagementRecord[]
   reports: ReportRecord[]
   audit: AuditRecord[]
+  eventAlerts: EventAlertRecord[]
   /** Incrémente pour forcer un rechargement du seed en mémoire */
   seedVersion?: number
 }
@@ -46,6 +48,7 @@ function emptyStore(): MockStore {
     engagements: [],
     reports: [],
     audit: [],
+    eventAlerts: [],
     seedVersion: 0,
   }
 }
@@ -74,8 +77,10 @@ export function getMockStore(): MockStore {
   if (!g[globalKey]) {
     g[globalKey] = emptyStore()
   }
-  migrateLegacyParticipations(g[globalKey] as MockStore & { participations?: Array<Record<string, unknown>> })
-  return g[globalKey]!
+  const store = g[globalKey]!
+  if (!store.eventAlerts) store.eventAlerts = []
+  migrateLegacyParticipations(store as MockStore & { participations?: Array<Record<string, unknown>> })
+  return store
 }
 
 export function resetMockStore() {

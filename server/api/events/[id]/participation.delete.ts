@@ -5,12 +5,10 @@ import { getEventById, getEventBySlug } from '../../../services/events-repositor
 import { upsertEngagement } from '../../../services/engagements-repository'
 import { badRequest, notFound, tooManyRequests } from '../../../utils/errors'
 import { checkRateLimit } from '../../../utils/rate-limit'
-import { verifyTurnstile } from '../../../utils/turnstile'
 
 const schema = z.object({
   field: z.enum(['support', 'participate']),
   eventScopedToken: z.string().min(16).max(128),
-  turnstileToken: z.string().min(1).optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -29,9 +27,7 @@ export default defineEventHandler(async (event) => {
   })
   if (!rl.ok) throw tooManyRequests()
 
-  const turnstileOk = await verifyTurnstile(event, parsed.data.turnstileToken, 'engage')
-  if (!turnstileOk) throw badRequest('Vérification antibot échouée')
-
+  // Pas de Turnstile au retrait : le jeton scoped à l’événement suffit.
   const isUuid = /^[0-9a-f-]{36}$/i.test(id)
   const record = isUuid ? await getEventById(id) : null
   const resolved = record ?? (await getEventBySlug(id))

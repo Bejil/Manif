@@ -35,6 +35,8 @@ type Dashboard = {
   pendingSubmissions: number
   publishedEvents: number
   openReports: number
+  activeAlerts: number
+  pendingAlerts: number
   countingAnomalies: string[]
   submissions: {
     total: number
@@ -92,6 +94,12 @@ const heroStats = computed(() => [
     label: 'Signalements ouverts',
     accent: 'border-l-[#805200]',
   },
+  {
+    to: '/admin/alertes',
+    value: dash.value?.activeAlerts,
+    label: 'Alertes e-mail actives',
+    accent: 'border-l-[#206C4D]',
+  },
 ])
 
 const submissionRows = computed(() => {
@@ -143,7 +151,7 @@ function fmt(n: number | undefined | null) {
         <p class="mt-2 text-sm text-[#454545]">{{ me.email }}</p>
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <NuxtLink
           v-for="stat in heroStats"
           :key="stat.label"

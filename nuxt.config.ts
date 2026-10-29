@@ -90,6 +90,8 @@ export default defineNuxtConfig({
     importCronBudgetMs: process.env.IMPORT_CRON_BUDGET_MS || '240000',
     /** false pour couper le cron sans retirer la schedule. */
     importCronEnabled: process.env.IMPORT_CRON_ENABLED !== 'false',
+    /** false pour couper le cron d’alertes e-mail. */
+    alertsCronEnabled: process.env.ALERTS_CRON_ENABLED !== 'false',
 
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://manif.info',

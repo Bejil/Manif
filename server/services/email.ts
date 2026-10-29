@@ -331,6 +331,156 @@ export function buildSubmissionRejectedEmail(opts: {
   return { subject, text, html }
 }
 
+export function buildAlertConfirmEmail(opts: {
+  siteUrl: string
+  token: string
+  locationLabel: string
+  radiusKm: number
+}) {
+  const base = opts.siteUrl.replace(/\/$/, '')
+  const link = `${base}/api/alerts/confirm?token=${encodeURIComponent(opts.token)}`
+  const subject = `Manif' — Confirmez votre alerte près de ${opts.locationLabel}`
+  const text = [
+    `Vous vous êtes inscrit·e aux alertes Manif' pour les nouvelles manifestations dans un rayon de ${opts.radiusKm} km autour de ${opts.locationLabel}.`,
+    '',
+    'Confirmez votre adresse e-mail pour activer l’alerte :',
+    link,
+    '',
+    'Si vous n’êtes pas à l’origine de cette demande, ignorez ce message.',
+    '',
+    '— Manif\' (plateforme citoyenne indépendante)',
+  ].join('\n')
+
+  const html = renderEmailLayout({
+    siteUrl: base,
+    preview: `Confirmez votre alerte près de ${opts.locationLabel}`,
+    title: 'Confirmez votre alerte',
+    bodyHtml: [
+      bodyParagraph(
+        `Vous vous êtes inscrit·e aux alertes Manif' pour les nouvelles manifestations dans un rayon de <strong>${opts.radiusKm}&nbsp;km</strong> autour de <strong>${escapeHtml(opts.locationLabel)}</strong>.`,
+      ),
+      bodyParagraph('Ce lien active l’alerte sur votre adresse e-mail.'),
+    ].join(''),
+    ctaUrl: link,
+    ctaLabel: 'Confirmer mon alerte',
+    footerNote: 'Si vous n’êtes pas à l’origine de cette demande, ignorez ce message.',
+  })
+
+  return { subject, text, html, link }
+}
+
+export function buildAlertUpdatedEmail(opts: {
+  siteUrl: string
+  locationLabel: string
+  radiusKm: number
+  unsubscribeToken: string
+}) {
+  const base = opts.siteUrl.replace(/\/$/, '')
+  const unsub = `${base}/api/alerts/unsubscribe?token=${encodeURIComponent(opts.unsubscribeToken)}`
+  const subject = `Manif' — Alerte mise à jour — ${opts.locationLabel}`
+  const text = [
+    `Votre alerte Manif' a été mise à jour : ${opts.radiusKm} km autour de ${opts.locationLabel}.`,
+    '',
+    'Vous recevrez un e-mail lorsqu’une nouvelle manifestation sera publiée dans cette zone.',
+    '',
+    'Se désinscrire :',
+    unsub,
+    '',
+    '— Manif\'',
+  ].join('\n')
+
+  const html = renderEmailLayout({
+    siteUrl: base,
+    preview: `Alerte mise à jour : ${opts.locationLabel}`,
+    title: 'Alerte mise à jour',
+    bodyHtml: [
+      bodyParagraph(
+        `Votre alerte est active : <strong>${opts.radiusKm}&nbsp;km</strong> autour de <strong>${escapeHtml(opts.locationLabel)}</strong>.`,
+      ),
+      bodyParagraph('Vous serez prévenu·e des nouvelles manifestations publiées dans cette zone.'),
+      bodyParagraph(
+        `<a href="${escapeHtml(unsub)}" style="color:#6735B6;">Se désinscrire</a>`,
+      ),
+    ].join(''),
+    footerNote: '— Manif\'',
+  })
+
+  return { subject, text, html }
+}
+
+export function buildAlertDigestEmail(opts: {
+  siteUrl: string
+  locationLabel: string
+  radiusKm: number
+  unsubscribeToken: string
+  events: Array<{
+    title: string
+    slug: string
+    cityName: string
+    startAt: string | null
+    distanceKm: number
+  }>
+}) {
+  const base = opts.siteUrl.replace(/\/$/, '')
+  const unsub = `${base}/api/alerts/unsubscribe?token=${encodeURIComponent(opts.unsubscribeToken)}`
+  const n = opts.events.length
+  const subject = n === 1
+    ? `Manif' — 1 nouvelle manifestation près de ${opts.locationLabel}`
+    : `Manif' — ${n} nouvelles manifestations près de ${opts.locationLabel}`
+
+  const lines = opts.events.map((e) => {
+    const when = e.startAt
+      ? e.startAt.slice(0, 16).replace('T', ' ')
+      : 'Date à confirmer'
+    return `• ${e.title} — ${e.cityName} (${e.distanceKm} km) — ${when}\n  ${base}/manifestations/${e.slug}`
+  })
+
+  const text = [
+    `Nouvelles manifestations publiées dans un rayon de ${opts.radiusKm} km autour de ${opts.locationLabel} :`,
+    '',
+    ...lines,
+    '',
+    'Voir l’agenda :',
+    `${base}/manifestations`,
+    '',
+    'Se désinscrire :',
+    unsub,
+    '',
+    '— Manif\'',
+  ].join('\n')
+
+  const listHtml = opts.events.map((e) => {
+    const when = e.startAt
+      ? e.startAt.slice(0, 16).replace('T', ' ')
+      : 'Date à confirmer'
+    const url = `${base}/manifestations/${e.slug}`
+    return `<li style="margin:0 0 12px;">
+      <a href="${escapeHtml(url)}" style="color:#6735B6;font-weight:700;text-decoration:underline;">${escapeHtml(e.title)}</a><br>
+      <span style="color:#636363;font-size:14px;">${escapeHtml(e.cityName)} · ${e.distanceKm}&nbsp;km · ${escapeHtml(when)}</span>
+    </li>`
+  }).join('')
+
+  const html = renderEmailLayout({
+    siteUrl: base,
+    preview: subject,
+    title: n === 1 ? 'Nouvelle manifestation' : 'Nouvelles manifestations',
+    bodyHtml: [
+      bodyParagraph(
+        `Dans un rayon de <strong>${opts.radiusKm}&nbsp;km</strong> autour de <strong>${escapeHtml(opts.locationLabel)}</strong> :`,
+      ),
+      `<ul style="margin:0 0 14px;padding-left:18px;">${listHtml}</ul>`,
+      bodyParagraph(
+        `<a href="${escapeHtml(unsub)}" style="color:#6735B6;font-size:13px;">Se désinscrire de cette alerte</a>`,
+      ),
+    ].join(''),
+    ctaUrl: `${base}/manifestations`,
+    ctaLabel: 'Voir l’agenda',
+    footerNote: '— Manif\'',
+  })
+
+  return { subject, text, html }
+}
+
 export function buildChangesRequestedEmail(opts: {
   siteUrl: string
   title: string

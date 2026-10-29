@@ -16,6 +16,7 @@ const links = [
   { to: '/admin/evenements', label: 'Événements' },
   { to: '/admin/imports', label: 'Imports' },
   { to: '/admin/propositions', label: 'Propositions' },
+  { to: '/admin/alertes', label: 'Alertes' },
   { to: '/admin/signalements', label: 'Signalements' },
 ]
 
@@ -66,17 +67,17 @@ watch(open, (v) => {
           >
             {{ link.label }}
           </NuxtLink>
-          <NuxtLink to="/" class="ml-2">
-            <UiButton size="sm" variant="outline">Site public</UiButton>
-          </NuxtLink>
           <UiButton
             v-if="me?.authenticated"
             size="sm"
             variant="ghost"
-            class="ml-1"
+            class="ml-2"
             :disabled="loggingOut"
             @click="logout"
           >
+            <svg class="size-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
             {{ loggingOut ? 'Déconnexion…' : 'Déconnexion' }}
           </UiButton>
         </nav>
@@ -105,17 +106,17 @@ watch(open, (v) => {
           >
             {{ link.label }}
           </NuxtLink>
-          <NuxtLink to="/" class="mt-2" @click="open = false">
-            <UiButton block variant="outline">Site public</UiButton>
-          </NuxtLink>
           <UiButton
             v-if="me?.authenticated"
             block
             variant="ghost"
-            class="mt-1"
+            class="mt-2"
             :disabled="loggingOut"
             @click="logout"
           >
+            <svg class="size-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
             {{ loggingOut ? 'Déconnexion…' : 'Déconnexion' }}
           </UiButton>
         </nav>

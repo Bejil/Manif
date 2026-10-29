@@ -11,11 +11,11 @@
 ## Configuration Supabase
 
 1. Créer un projet PostgreSQL
-2. Exécuter les migrations `supabase/migrations/001` → `009` dans l’ordre (SQL Editor)
-   (`009_event_media.sql` / `apply_009_event_media.sql` : colonnes images/vidéos + bucket Storage `event-media`)
+2. Exécuter les migrations `supabase/migrations/001` → `012` dans l’ordre (SQL Editor)
+   (`009_event_media.sql` : médias ; `012_event_alerts.sql` / `apply_012_event_alerts.sql` : alertes e-mail géolocalisées)
 3. Optionnel : `supabase/seed.sql` (événements de démarrage — remplacer par de vraies données en prod)
 4. Copier `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` dans les secrets serveur
-5. Vérifier que RLS est actif et qu'aucune politique publique n'expose `engagements` / e-mails
+5. Vérifier que RLS est actif et qu'aucune politique publique n'expose `engagements` / e-mails / `event_alerts`
 6. Mettre `NUXT_PUBLIC_USE_MOCK_DB=false`
 
 Dates à confirmer (`start_at` nullable) : migration `006_optional_start_at.sql`,
@@ -61,18 +61,24 @@ Respecter les conditions d'utilisation et l'attribution.
 
 Nuxt 4 / Nitro est détecté automatiquement : **pas de `vercel.json` requis**. Build = `nuxt build` (SSR).
 
-### Import quotidien (Cron)
+### Cron quotidien (import puis alertes)
 
-Déclaré dans `vercel.json` : **GET `/api/cron/imports`** tous les jours à **05:00 UTC**.
+Déclaré dans `vercel.json` : **GET `/api/cron/imports`** tous les jours à **07:00 UTC** (`0 7 * * *`).
+
+Enchaînement :
+1. Import multi-sources (éventuellement via `/api/cron/imports-continue` si budget temps)
+2. **Dès que l’import est terminé** → digests des alertes e-mail (nouveaux events dans le rayon)
 
 1. Settings → Environment Variables → `CRON_SECRET` (chaîne ≥ 16 car., Production)
 2. Commit + push de `vercel.json` (ou Redeploy après merge)
-3. Settings → Cron Jobs : tu dois voir  
-   ` /api/cron/imports ` · `0 5 * * *`  
-   (plus le guide « Get Started »)
+3. Settings → Cron Jobs :  
+   ` /api/cron/imports ` · `0 7 * * *`
 
-Optionnel : `IMPORT_CRON_MODE`, `IMPORT_CRON_SOURCES`, `IMPORT_CRON_ENABLED=false`.  
-Suivi : `/admin/imports`.
+Optionnel import : `IMPORT_CRON_MODE`, `IMPORT_CRON_SOURCES`, `IMPORT_CRON_ENABLED=false`  
+(si l’import est coupé, les alertes partent quand même à 07:00 UTC).  
+Optionnel alertes : `ALERTS_CRON_ENABLED=false`.  
+Suivi import : `/admin/imports`.  
+`GET /api/cron/alerts` reste utilisable manuellement (Bearer `CRON_SECRET`).
 
 ### 1. Mettre le code sur GitHub
 
@@ -119,7 +125,8 @@ Vercel → Project → **Settings → Environment Variables**. Coller au minimum
 | `TURNSTILE_HOSTNAMES` | `manif.info,www.manif.info` |
 | `EMAIL_FROM` | `Manif' <contact@manif.info>` |
 | `RESEND_API_KEY` | si e-mails activés |
-| `CRON_SECRET` | secret ≥ 16 car. pour le cron d’import quotidien |
+| `CRON_SECRET` | secret ≥ 16 car. pour les crons (import + alertes) |
+| `ALERTS_CRON_ENABLED` | `false` pour désactiver le cron d’alertes |
 | Mentions légales | `NUXT_PUBLIC_LEGAL_*` |
 
 Puis **Redeploy** (Deployments → ⋮ → Redeploy).

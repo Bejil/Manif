@@ -4,9 +4,11 @@ import {
   parseImportCronSources,
   runImportUntilBudget,
 } from '../../utils/import-cron'
+import { runAlertsCronStep } from '../../utils/alerts-cron'
 
 /**
- * Point d’entrée Vercel Cron (GET /api/cron/imports).
+ * Point d’entrée Vercel Cron (GET /api/cron/imports) — 07:00 UTC.
+ * Enchaîne l’import puis, une fois terminé, les digests d’alertes e-mail.
  * Auth : Authorization Bearer CRON_SECRET.
  */
 export default defineEventHandler(async (event) => {
@@ -22,8 +24,10 @@ export default defineEventHandler(async (event) => {
     return { skipped: true, reason: 'mock-db' }
   }
 
+  // Import désactivé : on envoie quand même les alertes (nouveautés hors import du jour).
   if (config.importCronEnabled === false) {
-    return { skipped: true, reason: 'disabled' }
+    const alerts = await runAlertsCronStep()
+    return { skipped: true, reason: 'import-disabled', alerts }
   }
 
   const query = getQuery(event)
@@ -42,15 +46,23 @@ export default defineEventHandler(async (event) => {
 
   // Enchaîner si budget temps dépassé ; pas si annulé / bloqué / trop vieux
   const stopReasons = new Set(['cancelled', 'failed', 'missing', 'max-age', 'stalled', 'max-steps'])
-  if (!outcome.done && outcome.steps > 0 && !stopReasons.has(outcome.reason || '')) {
+  const shouldChain = !outcome.done
+    && outcome.steps > 0
+    && !stopReasons.has(outcome.reason || '')
+
+  if (shouldChain) {
     chainImportContinue({
       runId: outcome.runId,
       siteUrl: String(config.public.siteUrl || ''),
       cronSecret: secret,
       hop: 0,
     })
+    console.info('[cron:imports]', outcome)
+    return { ...outcome, alerts: { deferred: true, reason: 'continue' } }
   }
 
+  // Import terminé (succès ou arrêt) → digests alertes
+  const alerts = await runAlertsCronStep()
   console.info('[cron:imports]', outcome)
-  return outcome
+  return { ...outcome, alerts }
 })

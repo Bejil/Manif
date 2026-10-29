@@ -93,7 +93,7 @@ async function run(action: EngagementAction) {
         state: EngagementState
       }>(`/api/events/${props.event.id}/participation`, {
         method: 'DELETE',
-        body: { field, eventScopedToken: token, turnstileToken: turnstileToken.value || undefined },
+        body: { field, eventScopedToken: token },
       })
       Object.assign(counts, res.counts)
       Object.assign(state, res.state)
@@ -112,6 +112,9 @@ async function run(action: EngagementAction) {
       Object.assign(state, res.state)
       setLocalState(res.state)
       message.value = action === 'support' ? 'Soutien enregistré.' : 'Participation déclarée.'
+      useAlertPrompt().maybePrompt({ cityName: props.event.cityName })
+      // Token Turnstile à usage unique — nouveau challenge pour le prochain engagement
+      turnstileRef.value?.reset()
     }
   }
   catch (e: unknown) {
@@ -120,8 +123,6 @@ async function run(action: EngagementAction) {
   }
   finally {
     loading.value = false
-    // Token single-use — reset pour la prochaine action
-    turnstileRef.value?.reset()
   }
 }
 
