@@ -1,19 +1,19 @@
 const STORAGE_KEY = 'manif:alert-section-hidden-v1'
 
 /**
- * Masque le bloc #alertes sur l’accueil une fois l’alerte engagée
- * (inscription envoyée ou confirmée). Réaffiche après désinscription.
+ * Masque le bloc #alertes après confirmation e-mail (pas dès l’inscription).
+ * Bandeau temporaire en haut de page.
  */
 export function useHomeAlertSection() {
   const hidden = useState('home-alert-section-hidden', () => {
     if (import.meta.client) return localStorage.getItem(STORAGE_KEY) === '1'
     return false
   })
-  const toast = useState<{ text: string, tone: 'ok' | 'err' } | null>(
-    'home-alert-toast',
+  const banner = useState<{ text: string, tone: 'ok' | 'err' } | null>(
+    'home-alert-banner',
     () => null,
   )
-  let toastTimer: ReturnType<typeof setTimeout> | null = null
+  let bannerTimer: ReturnType<typeof setTimeout> | null = null
 
   function syncFromStorage() {
     if (!import.meta.client) return
@@ -30,30 +30,30 @@ export function useHomeAlertSection() {
     if (import.meta.client) localStorage.removeItem(STORAGE_KEY)
   }
 
-  function showToast(text: string, tone: 'ok' | 'err' = 'ok', ms = 5500) {
-    toast.value = { text, tone }
-    if (toastTimer) clearTimeout(toastTimer)
-    toastTimer = setTimeout(() => {
-      toast.value = null
-      toastTimer = null
+  function showBanner(text: string, tone: 'ok' | 'err' = 'ok', ms = 6000) {
+    banner.value = { text, tone }
+    if (bannerTimer) clearTimeout(bannerTimer)
+    bannerTimer = setTimeout(() => {
+      banner.value = null
+      bannerTimer = null
     }, ms)
   }
 
-  function dismissToast() {
-    toast.value = null
-    if (toastTimer) {
-      clearTimeout(toastTimer)
-      toastTimer = null
+  function dismissBanner() {
+    banner.value = null
+    if (bannerTimer) {
+      clearTimeout(bannerTimer)
+      bannerTimer = null
     }
   }
 
   return {
     hidden,
-    toast,
+    banner,
     syncFromStorage,
     hideSection,
     showSection,
-    showToast,
-    dismissToast,
+    showBanner,
+    dismissBanner,
   }
 }

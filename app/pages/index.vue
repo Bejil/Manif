@@ -65,21 +65,19 @@ const route = useRoute()
 const router = useRouter()
 const {
   hidden: alertsSectionHidden,
-  toast: alertToast,
   syncFromStorage: syncAlertsSection,
   hideSection: hideAlertsSection,
   showSection: showAlertsSection,
-  showToast: showAlertToast,
-  dismissToast: dismissAlertToast,
+  showBanner: showAlertBanner,
 } = useHomeAlertSection()
 
 function onAlertSignupSuccess(payload: { needsConfirmation: boolean }) {
-  hideAlertsSection()
-  showAlertToast(
-    payload.needsConfirmation
-      ? 'E-mail envoyé — confirmez l’activation depuis votre boîte mail.'
-      : 'Alerte mise à jour. Vous serez prévenu·e des nouvelles manifestations dans votre zone.',
-  )
+  // En attente de confirmation : le bloc reste visible (message dans le formulaire).
+  // Déjà active (mise à jour) : masquer + bandeau.
+  if (!payload.needsConfirmation) {
+    hideAlertsSection()
+    showAlertBanner('Alerte mise à jour. Vous serez prévenu·e des nouvelles manifestations dans votre zone.')
+  }
 }
 
 onMounted(() => {
@@ -87,14 +85,14 @@ onMounted(() => {
   const v = route.query.alertes
   if (v === 'confirmed') {
     hideAlertsSection()
-    showAlertToast('Alerte activée. Vous serez prévenu·e des nouvelles manifestations dans votre zone.')
+    showAlertBanner('Alerte activée. Vous serez prévenu·e des nouvelles manifestations dans votre zone.')
   }
   else if (v === 'unsubscribed') {
     showAlertsSection()
-    showAlertToast('Vous êtes désinscrit·e des alertes e-mail.')
+    showAlertBanner('Vous êtes désinscrit·e des alertes e-mail.')
   }
   else if (v === 'invalid') {
-    showAlertToast('Lien d’alerte invalide ou expiré.', 'err')
+    showAlertBanner('Lien d’alerte invalide ou expiré.', 'err')
   }
 
   if (v) {
@@ -352,34 +350,6 @@ const engagementBlocks = [
         </div>
       </section>
     </ClientOnly>
-
-    <Teleport to="body">
-      <div
-        v-if="alertToast"
-        class="pointer-events-none fixed inset-x-0 bottom-6 z-[80] flex justify-center px-4"
-        role="status"
-        aria-live="polite"
-      >
-        <div
-          class="pointer-events-auto flex max-w-md items-start gap-3 rounded-[8px] border px-4 py-3 text-sm shadow-lift"
-          :class="alertToast.tone === 'ok'
-            ? 'border-[#C6E8D8] bg-[#E7F6EF] text-[#206C4D]'
-            : 'border-[#E8B4AE] bg-[#FDF2F0] text-[#AD291F]'"
-        >
-          <p class="min-w-0 flex-1 font-semibold leading-snug">
-            {{ alertToast.text }}
-          </p>
-          <button
-            type="button"
-            class="shrink-0 rounded-[4px] px-1.5 text-lg leading-none opacity-70 hover:opacity-100"
-            aria-label="Fermer"
-            @click="dismissAlertToast"
-          >
-            ×
-          </button>
-        </div>
-      </div>
-    </Teleport>
 
     <!-- SOUTENIR ≠ PARTICIPER -->
     <section class="border-y border-[#DDDAD3] bg-[#111111] text-[#FFFCF4]">
