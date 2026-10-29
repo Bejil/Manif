@@ -13,19 +13,27 @@ const props = withDefaults(defineProps<{
   actionLabel?: string
   /** Affiche le CTA comme UiButton (admin) */
   actionAsButton?: boolean
+  /** Masque le CTA (slot actions ou pas de CTA) */
+  hideAction?: boolean
+  /** Pas de zone cliquable globale (boutons externes) */
+  staticCard?: boolean
 }>(), {
   selected: false,
   actionLabel: 'Plus de détails\u00a0>',
   actionAsButton: false,
+  hideAction: false,
+  staticCard: false,
 })
 
 defineEmits<{ select: [] }>()
+const slots = useSlots()
 const { formatDate, categoryLabel } = useEventFormat()
 const { isSupported, isParticipating } = useMyEngagements()
 
 const href = computed(() => props.to ?? `/manifestations/${props.event.slug}`)
 const iSupport = computed(() => isSupported(props.event.id))
 const iParticipate = computed(() => isParticipating(props.event.id))
+const hasActionsSlot = computed(() => Boolean(slots.actions))
 
 /** Bordure gauche : signature par statut (hors sélection) */
 const shell: Record<DisplayEventStatus, string> = {
@@ -72,138 +80,166 @@ const descriptionPreview = computed(() => excerptText(props.event.description ||
     :aria-current="selected ? 'true' : undefined"
   >
     <div
-      role="button"
-      tabindex="0"
-      class="w-full cursor-pointer text-left"
-      @click="$emit('select')"
-      @keydown.enter.prevent="$emit('select')"
-      @keydown.space.prevent="$emit('select')"
+      class="flex items-start gap-4"
+      :class="staticCard ? '' : 'cursor-pointer'"
+      :role="staticCard ? undefined : 'button'"
+      :tabindex="staticCard ? undefined : 0"
+      @click="!staticCard && $emit('select')"
+      @keydown.enter.prevent="!staticCard && $emit('select')"
+      @keydown.space.prevent="!staticCard && $emit('select')"
     >
-      <div class="flex flex-wrap items-center gap-2">
-        <StatusBadge :status="event.displayStatus" />
-        <span
-          v-if="iSupport"
-          class="chip inline-flex items-center gap-1"
-          :class="selected ? 'bg-[#9C6EE8] text-[#111111]' : 'bg-[#F0E8FC] text-[#4D257D]'"
-        >
-          <BrandIcon name="support" :size="12" />
-          Je soutiens
-        </span>
-        <span
-          v-if="iParticipate"
-          class="chip inline-flex items-center gap-1"
-          :class="selected ? 'bg-[#D1271C] text-[#FFFCF4]' : 'bg-[#FDEDEB] text-[#97251B]'"
-        >
-          <BrandIcon name="participate" :size="12" />
-          Je participe
-        </span>
-        <span
-          v-if="!event.startAt"
-          class="chip bg-[#805200] text-[#FFFCF4]"
-        >
-          Date à venir
-        </span>
-        <span
-          class="text-xs font-semibold uppercase tracking-wide"
-          :class="selected ? 'text-[#FFFCF4]/55' : 'text-[#636363]'"
-        >
-          {{ categoryLabel(event.category) }}
-        </span>
-      </div>
-
-      <p
-        class="mt-3 text-sm font-bold"
-        :class="selected ? 'text-[#9C6EE8]' : dateClass[event.displayStatus]"
-      >
-        {{ dateLabel }} · {{ event.cityName }}
-      </p>
-
-      <h3
-        class="mt-1.5 text-lg font-extrabold leading-snug"
-        :class="selected ? 'text-[#FFFCF4]' : [titleClass[event.displayStatus], 'group-hover:text-[#6735B6]']"
-      >
-        <NuxtLink
-          :to="href"
-          class="hover:underline"
-          :class="selected ? 'decoration-[#9C6EE8]' : ''"
-          @click.stop
-        >
-          {{ event.title }}
-        </NuxtLink>
-      </h3>
-
-      <p
-        class="mt-1 text-sm"
-        :class="selected ? 'text-[#FFFCF4]/70' : 'text-[#454545]'"
-      >
-        <template v-if="event.locationRevealed">
-          {{ event.locationName }}
+      <div class="min-w-0 flex-1 text-left">
+        <div class="flex flex-wrap items-center gap-2">
+          <StatusBadge :status="event.displayStatus" />
           <span
-            v-if="event.latitude == null || event.longitude == null"
-            class="ml-1"
-            :class="selected ? 'text-[#FFFCF4]/55' : 'text-[#805200]'"
-          >· Position carte à venir</span>
-        </template>
-        <span
-          v-else
-          :class="selected ? 'text-[#FFFCF4]/70' : 'text-[#454545]'"
-        >
-          {{ event.cityName }}
-          <span
-            class="font-semibold"
-            :class="selected ? 'text-[#9C6EE8]' : 'text-[#805200]'"
+            v-if="iSupport"
+            class="chip inline-flex items-center gap-1"
+            :class="selected ? 'bg-[#9C6EE8] text-[#111111]' : 'bg-[#F0E8FC] text-[#4D257D]'"
           >
-            · lieu précis à venir
-          </span>
-        </span>
-      </p>
-
-      <p
-        v-if="descriptionPreview"
-        class="mt-2 line-clamp-2 text-sm leading-relaxed"
-        :class="selected ? 'text-[#FFFCF4]/65' : 'text-[#636363]'"
-      >
-        {{ descriptionPreview }}
-      </p>
-
-      <div class="mt-4 flex flex-wrap items-end justify-between gap-3">
-        <div class="flex flex-wrap gap-2 text-xs font-bold">
-          <span
-            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5"
-            :class="selected
-              ? 'border border-white/25 text-[#FFFCF4]'
-              : 'border border-[#DDDAD3] text-[#4D257D]'"
-          >
-            <BrandIcon name="support" :size="14" />
-            {{ event.counts.supports }} soutien{{ event.counts.supports > 1 ? 's' : '' }}
+            <BrandIcon name="support" :size="12" />
+            Je soutiens
           </span>
           <span
-            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5"
-            :class="selected
-              ? 'border border-white/25 text-[#FFFCF4]'
-              : 'border border-[#DDDAD3] text-[#97251B]'"
+            v-if="iParticipate"
+            class="chip inline-flex items-center gap-1"
+            :class="selected ? 'bg-[#D1271C] text-[#FFFCF4]' : 'bg-[#FDEDEB] text-[#97251B]'"
           >
-            <BrandIcon name="participate" :size="14" />
-            {{ event.counts.participations }} déclarée{{ event.counts.participations > 1 ? 's' : '' }}
+            <BrandIcon name="participate" :size="12" />
+            Je participe
+          </span>
+          <span
+            v-if="!event.startAt"
+            class="chip bg-[#805200] text-[#FFFCF4]"
+          >
+            Date à venir
+          </span>
+          <span
+            class="text-xs font-semibold uppercase tracking-wide"
+            :class="selected ? 'text-[#FFFCF4]/55' : 'text-[#636363]'"
+          >
+            {{ categoryLabel(event.category) }}
           </span>
         </div>
-        <NuxtLink
-          v-if="actionAsButton"
-          :to="href"
-          class="ml-auto shrink-0"
-          @click.stop
+
+        <p
+          class="mt-3 text-sm font-bold"
+          :class="selected ? 'text-[#9C6EE8]' : dateClass[event.displayStatus]"
         >
-          <UiButton size="sm" type="button">{{ actionLabel }}</UiButton>
-        </NuxtLink>
-        <NuxtLink
-          v-else
-          :to="href"
-          class="ml-auto shrink-0 text-xs font-bold underline-offset-2 hover:underline"
-          :class="selected ? 'text-[#9C6EE8]' : 'text-[#6735B6]'"
-          @click.stop
+          {{ dateLabel }} · {{ event.cityName }}
+        </p>
+
+        <h3
+          class="mt-1.5 text-lg font-extrabold leading-snug"
+          :class="selected ? 'text-[#FFFCF4]' : [titleClass[event.displayStatus], 'group-hover:text-[#6735B6]']"
         >
-          {{ actionLabel }}
-        </NuxtLink>
+          <NuxtLink
+            :to="href"
+            class="hover:underline"
+            :class="selected ? 'decoration-[#9C6EE8]' : ''"
+            @click.stop
+          >
+            {{ event.title }}
+          </NuxtLink>
+        </h3>
+
+        <p
+          class="mt-1 text-sm"
+          :class="selected ? 'text-[#FFFCF4]/70' : 'text-[#454545]'"
+        >
+          <template v-if="event.locationRevealed">
+            {{ event.locationName }}
+            <span
+              v-if="event.latitude == null || event.longitude == null"
+              class="ml-1"
+              :class="selected ? 'text-[#FFFCF4]/55' : 'text-[#805200]'"
+            >· Position carte à venir</span>
+          </template>
+          <span
+            v-else
+            :class="selected ? 'text-[#FFFCF4]/70' : 'text-[#454545]'"
+          >
+            {{ event.cityName }}
+            <span
+              class="font-semibold"
+              :class="selected ? 'text-[#9C6EE8]' : 'text-[#805200]'"
+            >
+              · lieu précis à venir
+            </span>
+          </span>
+        </p>
+
+        <p
+          v-if="descriptionPreview"
+          class="mt-2 line-clamp-2 text-sm leading-relaxed"
+          :class="selected ? 'text-[#FFFCF4]/65' : 'text-[#636363]'"
+        >
+          {{ descriptionPreview }}
+        </p>
+
+        <div class="mt-4 flex flex-wrap items-end justify-between gap-3">
+          <div class="flex flex-wrap gap-2 text-xs font-bold">
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5"
+              :class="selected
+                ? 'border border-white/25 text-[#FFFCF4]'
+                : 'border border-[#DDDAD3] text-[#4D257D]'"
+            >
+              <BrandIcon name="support" :size="14" />
+              {{ event.counts.supports }} soutien{{ event.counts.supports > 1 ? 's' : '' }}
+            </span>
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5"
+              :class="selected
+                ? 'border border-white/25 text-[#FFFCF4]'
+                : 'border border-[#DDDAD3] text-[#97251B]'"
+            >
+              <BrandIcon name="participate" :size="14" />
+              {{ event.counts.participations }} déclarée{{ event.counts.participations > 1 ? 's' : '' }}
+            </span>
+            <span
+              v-if="event.publicationStatus === 'draft'"
+              class="inline-flex items-center rounded-full px-2.5 py-1.5"
+              :class="selected ? 'border border-white/25 text-[#FFFCF4]' : 'border border-[#DDDAD3] text-[#805200]'"
+            >
+              Brouillon
+            </span>
+            <span
+              v-else-if="event.publicationStatus === 'unpublished'"
+              class="inline-flex items-center rounded-full px-2.5 py-1.5"
+              :class="selected ? 'border border-white/25 text-[#FFFCF4]' : 'border border-[#DDDAD3] text-[#636363]'"
+            >
+              Dépublié
+            </span>
+          </div>
+          <template v-if="!hideAction && !hasActionsSlot">
+            <NuxtLink
+              v-if="actionAsButton"
+              :to="href"
+              class="ml-auto shrink-0"
+              @click.stop
+            >
+              <UiButton size="sm" type="button">{{ actionLabel }}</UiButton>
+            </NuxtLink>
+            <NuxtLink
+              v-else
+              :to="href"
+              class="ml-auto shrink-0 text-xs font-bold underline-offset-2 hover:underline"
+              :class="selected ? 'text-[#9C6EE8]' : 'text-[#6735B6]'"
+              @click.stop
+            >
+              {{ actionLabel }}
+            </NuxtLink>
+          </template>
+        </div>
+      </div>
+
+      <div
+        v-if="hasActionsSlot"
+        class="flex shrink-0 flex-col gap-2"
+        @click.stop
+        @keydown.stop
+      >
+        <slot name="actions" />
       </div>
     </div>
   </article>

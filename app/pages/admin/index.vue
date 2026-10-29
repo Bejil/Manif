@@ -31,12 +31,6 @@ async function login() {
   }
 }
 
-async function logout() {
-  await $fetch('/api/admin/logout', { method: 'POST' })
-  await navigateTo('/admin')
-  reloadNuxtApp()
-}
-
 type Dashboard = {
   pendingSubmissions: number
   publishedEvents: number
@@ -143,13 +137,10 @@ function fmt(n: number | undefined | null) {
     </div>
 
     <div v-else>
-      <div class="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">Admin</p>
-          <h1 class="mf-display mf-h3 mt-2 text-[#111111]">Tableau de bord</h1>
-          <p class="mt-2 text-sm text-[#454545]">{{ me.email }}</p>
-        </div>
-        <UiButton variant="outline" size="sm" @click="logout">Déconnexion</UiButton>
+      <div class="mb-8">
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">Admin</p>
+        <h1 class="mf-display mf-h3 mt-2 text-[#111111]">Tableau de bord</h1>
+        <p class="mt-2 text-sm text-[#454545]">{{ me.email }}</p>
       </div>
 
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

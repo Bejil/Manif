@@ -7,8 +7,6 @@ import {
 import type { ImportModeId, ImportSourceId } from '#shared/constants/import-sources'
 import type { ImportCandidateRecord, ImportRunRecord } from '#shared/types/import'
 import type { PublicationStatus } from '#shared/constants/statuses'
-import { readImportChanges, type ImportFieldChange } from '#shared/utils/import-diff'
-
 definePageMeta({ layout: 'admin' })
 useSeoMeta({ title: 'Imports multi-sources — Admin', robots: 'noindex' })
 
@@ -91,35 +89,13 @@ function makeStartingRun(): ImportRunRecord {
 }
 
 const candidatesPage = ref(1)
-/** Liste affichée selon le bloc stats cliqué. */
-type CandidatesKind = 'scraped' | 'new' | 'duplicates' | 'updated' | 'errors'
-const candidatesKind = ref<CandidatesKind>('new')
 
+/** Liste = nouveaux candidats uniquement (créations de l’import). */
 const candidatesQuery = computed(() => ({
   page: candidatesPage.value,
   pageSize: 30,
-  kind: candidatesKind.value,
+  kind: 'new',
 }))
-
-const candidatesKindLabel = computed(() => {
-  switch (candidatesKind.value) {
-    case 'scraped': return 'Scrapés'
-    case 'duplicates': return 'Doublons'
-    case 'updated': return 'Mises à jour'
-    case 'errors': return 'Erreurs'
-    default: return 'Candidats'
-  }
-})
-
-const candidatesEmptyLabel = computed(() => {
-  switch (candidatesKind.value) {
-    case 'scraped': return 'Aucun événement scrapé pour cet import.'
-    case 'duplicates': return 'Aucun doublon pour cet import.'
-    case 'updated': return 'Aucune mise à jour pour cet import.'
-    case 'errors': return 'Aucune erreur pour cet import.'
-    default: return 'Aucun nouveau candidat pour cet import.'
-  }
-})
 
 const RUN_FINISHED = new Set(['completed', 'cancelled', 'failed'])
 const RUN_LIVE = new Set(['pending', 'running', 'scraped', 'applying'])
@@ -177,12 +153,6 @@ function clearCandidateSelection() {
 
 watch(activeRunId, () => {
   candidatesPage.value = 1
-  candidatesKind.value = 'new'
-  clearCandidateSelection()
-})
-
-watch(candidatesKind, () => {
-  candidatesPage.value = 1
   clearCandidateSelection()
 })
 
@@ -190,50 +160,24 @@ watch(candidatesPage, () => {
   clearCandidateSelection()
 })
 
-function selectCandidatesKind(kind: CandidatesKind) {
-  if (!showCandidates.value) return
-  candidatesKind.value = kind
-}
-
-function statsBlockClass(kind: CandidatesKind) {
-  const active = showCandidates.value && candidatesKind.value === kind
-  if (active) {
-    return kind === 'updated'
-      ? 'border-[#6735B6] bg-[#6735B6] text-[#FFFCF4]'
-      : kind === 'errors'
-        ? 'border-[#AD291F] bg-[#AD291F] text-[#FFFCF4]'
-        : 'border-[#111111] bg-[#111111] text-[#FFFCF4]'
+/** Recharge la page courante (ou la dernière valide) après pub / suppression. */
+async function reloadCandidatesList(removedCount = 0) {
+  clearCandidateSelection()
+  const pageSize = 30
+  const prevTotal = detailData.value?.candidates?.total ?? 0
+  const nextTotal = Math.max(0, prevTotal - Math.max(0, removedCount))
+  const maxPage = Math.max(1, Math.ceil(nextTotal / pageSize) || 1)
+  if (candidatesPage.value > maxPage) {
+    candidatesPage.value = maxPage
   }
-  if (!showCandidates.value) return 'border-[#DDDAD3] bg-[#FFFCF4]'
-  if (kind === 'errors' && (activeRun.value?.stats?.errors || 0) > 0) {
-    return 'border-[#AD291F]/40 bg-[#FDF2F0] hover:border-[#AD291F]'
-  }
-  return 'border-[#DDDAD3] bg-white hover:border-[#111111]'
-}
-
-function statsLabelClass(kind: CandidatesKind) {
-  if (!showCandidates.value || candidatesKind.value !== kind) return 'text-[#636363]'
-  if (kind === 'updated') return 'text-[#E8D9F8]'
-  if (kind === 'errors') return 'text-[#F9D0CB]'
-  return 'text-[#9C6EE8]'
-}
-
-/** Met à jour une carte sans recharger toute la liste. */
-function patchCandidateLocal(id: string, patch: Partial<CandidateRow>) {
-  const list = detailData.value?.candidates
-  if (!list?.items?.length) return
-  const idx = list.items.findIndex(x => x.id === id)
-  if (idx < 0) return
-  list.items[idx] = { ...list.items[idx]!, ...patch }
-}
-
-function removeCandidateLocal(id: string) {
-  const list = detailData.value?.candidates
-  if (!list?.items) return
-  const before = list.items.length
-  list.items = list.items.filter(x => x.id !== id)
-  if (list.items.length < before) {
-    list.total = Math.max(0, (list.total || 0) - (before - list.items.length))
+  await refreshDetail()
+  const after = detailData.value?.candidates
+  if (after && after.items.length === 0 && after.total > 0) {
+    const last = Math.max(1, Math.ceil(after.total / pageSize))
+    if (candidatesPage.value !== last) {
+      candidatesPage.value = last
+      await refreshDetail()
+    }
   }
 }
 
@@ -254,10 +198,6 @@ function excerpt(text: string, max = 160) {
   const clean = text.replace(/\s+/g, ' ').trim()
   if (clean.length <= max) return clean
   return `${clean.slice(0, max).trim()}…`
-}
-
-function candidateChanges(c: CandidateRow): ImportFieldChange[] {
-  return readImportChanges(c.payload)
 }
 
 /** Coupe la boucle continue locale (reprise / lancement) dès qu’on annule. */
@@ -312,7 +252,6 @@ async function startImport() {
   optimisticRun.value = starting
   activeRunId.value = starting.id
   candidatesPage.value = 1
-  candidatesKind.value = 'new'
   busy.value = true
   try {
     const step = await $fetch<{ run: ImportRunRecord, done: boolean }>(
@@ -374,11 +313,6 @@ function canPublishCandidate(c: CandidateRow): boolean {
   return c.publicationStatus !== 'published'
 }
 
-function canUnpublishCandidate(c: CandidateRow): boolean {
-  if (!candidateHasEvent(c)) return false
-  return c.publicationStatus === 'published'
-}
-
 function canDeleteCandidate(c: CandidateRow): boolean {
   return candidateHasEvent(c)
 }
@@ -400,10 +334,6 @@ const selectedCount = computed(() => selectedCandidateIds.value.length)
 
 const canBulkPublish = computed(() =>
   selectedCandidates.value.some(canPublishCandidate),
-)
-
-const canBulkUnpublish = computed(() =>
-  selectedCandidates.value.some(canUnpublishCandidate),
 )
 
 const canBulkDelete = computed(() =>
@@ -512,16 +442,8 @@ async function publishApplied() {
       `/api/admin/imports/${activeRun.value.id}/publish`,
       { method: 'POST', credentials: 'include' },
     )
+    await reloadCandidatesList(res.published)
     successMsg.value = `${res.published} publié(s), ${res.alreadyPublished} déjà public(s), ${res.missing} introuvable(s).`
-    // Mise à jour locale des cartes — pas de refresh qui fait clignoter la liste
-    const items = detailData.value?.candidates?.items
-    if (items) {
-      for (const row of items) {
-        if (row.publicationStatus === 'draft' || row.publicationStatus === 'unpublished') {
-          patchCandidateLocal(row.id, { publicationStatus: 'published' })
-        }
-      }
-    }
   }
   catch {
     errorMsg.value = 'Échec de la publication des brouillons'
@@ -538,27 +460,11 @@ async function publishCandidate(c: CandidateRow) {
   errorMsg.value = null
   try {
     await $fetch(`/api/admin/events/${eventId}/publish`, { method: 'POST', credentials: 'include' })
-    patchCandidateLocal(c.id, { publicationStatus: 'published' })
+    await reloadCandidatesList(1)
+    successMsg.value = 'Candidat publié.'
   }
   catch {
     errorMsg.value = 'Publication impossible'
-  }
-  finally {
-    publishingId.value = null
-  }
-}
-
-async function unpublishCandidate(c: CandidateRow) {
-  const eventId = c.appliedEventId || c.matchEventId
-  if (!eventId) return
-  publishingId.value = c.id
-  errorMsg.value = null
-  try {
-    await $fetch(`/api/admin/events/${eventId}/unpublish`, { method: 'POST', credentials: 'include' })
-    patchCandidateLocal(c.id, { publicationStatus: 'unpublished' })
-  }
-  catch {
-    errorMsg.value = 'Dépublication impossible'
   }
   finally {
     publishingId.value = null
@@ -572,10 +478,8 @@ async function deleteCandidate(c: CandidateRow) {
   errorMsg.value = null
   try {
     await $fetch(`/api/admin/events/${eventId}`, { method: 'DELETE', credentials: 'include' })
+    await reloadCandidatesList(1)
     successMsg.value = 'Événement supprimé.'
-    removeCandidateLocal(c.id)
-    selectedCandidateIds.value = selectedCandidateIds.value.filter(id => id !== c.id)
-    if (lastSelectAnchorId.value === c.id) lastSelectAnchorId.value = null
   }
   catch {
     errorMsg.value = 'Suppression impossible'
@@ -599,46 +503,16 @@ async function bulkPublishSelected() {
       if (!eventId) continue
       try {
         await $fetch(`/api/admin/events/${eventId}/publish`, { method: 'POST', credentials: 'include' })
-        patchCandidateLocal(c.id, { publicationStatus: 'published' })
         ok++
       }
       catch {
         fail++
       }
     }
+    await reloadCandidatesList(ok)
     successMsg.value = fail
       ? `${ok} publié(s), ${fail} échec(s).`
       : `${ok} publié(s).`
-  }
-  finally {
-    bulkBusy.value = false
-  }
-}
-
-async function bulkUnpublishSelected() {
-  const targets = selectedCandidates.value.filter(canUnpublishCandidate)
-  if (!targets.length) return
-  bulkBusy.value = true
-  errorMsg.value = null
-  successMsg.value = null
-  let ok = 0
-  let fail = 0
-  try {
-    for (const c of targets) {
-      const eventId = c.appliedEventId || c.matchEventId
-      if (!eventId) continue
-      try {
-        await $fetch(`/api/admin/events/${eventId}/unpublish`, { method: 'POST', credentials: 'include' })
-        patchCandidateLocal(c.id, { publicationStatus: 'unpublished' })
-        ok++
-      }
-      catch {
-        fail++
-      }
-    }
-    successMsg.value = fail
-      ? `${ok} dépublié(s), ${fail} échec(s).`
-      : `${ok} dépublié(s).`
   }
   finally {
     bulkBusy.value = false
@@ -653,24 +527,19 @@ async function bulkDeleteSelected() {
   successMsg.value = null
   let ok = 0
   let fail = 0
-  const removedIds: string[] = []
   try {
     for (const c of targets) {
       const eventId = c.appliedEventId || c.matchEventId
       if (!eventId) continue
       try {
         await $fetch(`/api/admin/events/${eventId}`, { method: 'DELETE', credentials: 'include' })
-        removeCandidateLocal(c.id)
-        removedIds.push(c.id)
         ok++
       }
       catch {
         fail++
       }
     }
-    if (removedIds.length) {
-      selectedCandidateIds.value = selectedCandidateIds.value.filter(id => !removedIds.includes(id))
-    }
+    await reloadCandidatesList(ok)
     successMsg.value = fail
       ? `${ok} supprimé(s), ${fail} échec(s).`
       : `${ok} supprimé(s).`
@@ -931,80 +800,30 @@ watch(
             </p>
 
             <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              <div>
-                <dt class="sr-only">Scrapés</dt>
-                <dd>
-                  <button
-                    type="button"
-                    class="flex w-full flex-col rounded-[4px] border px-3 py-3 text-left transition disabled:cursor-default"
-                    :class="statsBlockClass('scraped')"
-                    :disabled="!showCandidates"
-                    @click="selectCandidatesKind('scraped')"
-                  >
-                    <span class="text-[10px] font-bold uppercase tracking-wide" :class="statsLabelClass('scraped')">Scrapés</span>
-                    <span class="mt-1 text-lg font-extrabold tabular-nums">{{ activeRun.stats?.scraped ?? 0 }}</span>
-                  </button>
-                </dd>
+              <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Scrapés</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.scraped ?? 0 }}</dd>
               </div>
-              <div>
-                <dt class="sr-only">Candidats</dt>
-                <dd>
-                  <button
-                    type="button"
-                    class="flex w-full flex-col rounded-[4px] border px-3 py-3 text-left transition disabled:cursor-default"
-                    :class="statsBlockClass('new')"
-                    :disabled="!showCandidates"
-                    @click="selectCandidatesKind('new')"
-                  >
-                    <span class="text-[10px] font-bold uppercase tracking-wide" :class="statsLabelClass('new')">Candidats</span>
-                    <span class="mt-1 text-lg font-extrabold tabular-nums">{{ activeRun.stats?.created ?? 0 }}</span>
-                  </button>
-                </dd>
+              <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Candidats</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.created ?? 0 }}</dd>
               </div>
-              <div>
-                <dt class="sr-only">Doublons</dt>
-                <dd>
-                  <button
-                    type="button"
-                    class="flex w-full flex-col rounded-[4px] border px-3 py-3 text-left transition disabled:cursor-default"
-                    :class="statsBlockClass('duplicates')"
-                    :disabled="!showCandidates"
-                    @click="selectCandidatesKind('duplicates')"
-                  >
-                    <span class="text-[10px] font-bold uppercase tracking-wide" :class="statsLabelClass('duplicates')">Doublons</span>
-                    <span class="mt-1 text-lg font-extrabold tabular-nums">{{ activeRun.stats?.duplicates ?? 0 }}</span>
-                  </button>
-                </dd>
+              <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Doublons</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.duplicates ?? 0 }}</dd>
               </div>
-              <div>
-                <dt class="sr-only">Maj</dt>
-                <dd>
-                  <button
-                    type="button"
-                    class="flex w-full flex-col rounded-[4px] border px-3 py-3 text-left transition disabled:cursor-default"
-                    :class="statsBlockClass('updated')"
-                    :disabled="!showCandidates"
-                    @click="selectCandidatesKind('updated')"
-                  >
-                    <span class="text-[10px] font-bold uppercase tracking-wide" :class="statsLabelClass('updated')">Maj</span>
-                    <span class="mt-1 text-lg font-extrabold tabular-nums">{{ activeRun.stats?.updated ?? 0 }}</span>
-                  </button>
-                </dd>
+              <div class="rounded-[4px] border border-[#DDDAD3] bg-[#FFFCF4] p-3">
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Maj</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.updated ?? 0 }}</dd>
               </div>
-              <div>
-                <dt class="sr-only">Erreurs</dt>
-                <dd>
-                  <button
-                    type="button"
-                    class="flex w-full flex-col rounded-[4px] border px-3 py-3 text-left transition disabled:cursor-default"
-                    :class="statsBlockClass('errors')"
-                    :disabled="!showCandidates"
-                    @click="selectCandidatesKind('errors')"
-                  >
-                    <span class="text-[10px] font-bold uppercase tracking-wide" :class="statsLabelClass('errors')">Erreurs</span>
-                    <span class="mt-1 text-lg font-extrabold tabular-nums">{{ activeRun.stats?.errors ?? 0 }}</span>
-                  </button>
-                </dd>
+              <div
+                class="rounded-[4px] border p-3"
+                :class="(activeRun.stats?.errors || 0) > 0
+                  ? 'border-[#AD291F] bg-[#FDF2F0]'
+                  : 'border-[#DDDAD3] bg-[#FFFCF4]'"
+              >
+                <dt class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">Erreurs</dt>
+                <dd class="mt-1 text-lg font-extrabold tabular-nums text-[#111111]">{{ activeRun.stats?.errors ?? 0 }}</dd>
               </div>
             </dl>
 
@@ -1042,7 +861,7 @@ watch(
 
         <div class="rounded-[8px] border border-[#DDDAD3] bg-white p-5 shadow-soft">
           <h2 class="text-sm font-extrabold uppercase tracking-wide">
-            {{ showCandidates ? candidatesKindLabel : 'Candidats' }}
+            Candidats
           </h2>
 
           <div
@@ -1062,8 +881,7 @@ watch(
               >
             </div>
             <p class="max-w-sm text-sm text-[#636363]">
-              La liste s’affichera à la fin de l’import.
-              Cliquez ensuite sur un bloc pour filtrer les événements.
+              La liste des nouveaux candidats s’affichera à la fin de l’import.
             </p>
           </div>
           <p
@@ -1089,7 +907,7 @@ watch(
               v-else-if="!detailData?.candidates?.items?.length"
               class="mt-4 rounded-[4px] border border-dashed border-[#DDDAD3] bg-[#FFFCF4] px-4 py-8 text-center text-sm text-[#636363]"
             >
-              {{ candidatesEmptyLabel }}
+              Aucun nouveau candidat pour cet import.
             </p>
             <div
               v-if="detailData?.candidates?.items?.length"
@@ -1144,8 +962,7 @@ watch(
                       <NuxtLink
                         v-if="candidateAdminPath(c)"
                         :to="candidateAdminPath(c)!"
-                        class="text-sm font-bold hover:underline"
-                        :class="candidatesKind === 'updated' ? 'text-[#111111] hover:text-[#6735B6]' : 'text-[#D1271C]'"
+                        class="text-sm font-bold text-[#D1271C] hover:underline"
                       >
                         {{ c.title }}
                       </NuxtLink>
@@ -1159,7 +976,7 @@ watch(
                       </p>
 
                       <p
-                        v-if="c.description && candidatesKind !== 'updated'"
+                        v-if="c.description"
                         class="mt-2 text-sm leading-snug text-[#454545]"
                       >
                         {{ excerpt(c.description) }}
@@ -1178,33 +995,6 @@ watch(
                           {{ sourceLinkLabel(c.source) }}
                         </a>
                       </p>
-
-                      <ul
-                        v-if="candidatesKind === 'updated' && candidateChanges(c).length"
-                        class="mt-3 space-y-2"
-                      >
-                        <li
-                          v-for="change in candidateChanges(c)"
-                          :key="change.field"
-                          class="rounded-[4px] border border-[#E8D9F8] bg-[#F7F2FC] px-3 py-2"
-                        >
-                          <p class="text-[10px] font-bold uppercase tracking-wide text-[#4D257D]">
-                            {{ change.label }}
-                          </p>
-                          <p class="mt-1 text-xs leading-relaxed text-[#636363] line-through decoration-[#AD291F]/50">
-                            {{ change.field === 'description' ? excerpt(change.before, 120) : change.before }}
-                          </p>
-                          <p class="mt-0.5 text-sm font-semibold leading-relaxed text-[#111111]">
-                            {{ change.field === 'description' ? excerpt(change.after, 160) : change.after }}
-                          </p>
-                        </li>
-                      </ul>
-                      <p
-                        v-else-if="candidatesKind === 'updated'"
-                        class="mt-3 text-xs text-[#805200]"
-                      >
-                        Aucun détail de diff enregistré (import antérieur à cette fonctionnalité).
-                      </p>
                     </div>
 
                     <div
@@ -1219,15 +1009,6 @@ watch(
                         @click="publishCandidate(c)"
                       >
                         {{ publishingId === c.id ? 'Publication…' : 'Publier' }}
-                      </UiButton>
-                      <UiButton
-                        v-if="canUnpublishCandidate(c)"
-                        size="sm"
-                        variant="outline"
-                        :disabled="publishingId === c.id || busy || bulkBusy"
-                        @click="unpublishCandidate(c)"
-                      >
-                        {{ publishingId === c.id ? 'Dépublication…' : 'Dépublier' }}
                       </UiButton>
                       <UiButton
                         v-if="canDeleteCandidate(c)"
@@ -1290,14 +1071,6 @@ watch(
                       @click="bulkPublishSelected"
                     >
                       {{ bulkBusy ? '…' : 'Publier' }}
-                    </UiButton>
-                    <UiButton
-                      size="sm"
-                      variant="outline"
-                      :disabled="!canBulkUnpublish || bulkBusy || busy"
-                      @click="bulkUnpublishSelected"
-                    >
-                      Dépublier
                     </UiButton>
                     <UiButton
                       size="sm"
