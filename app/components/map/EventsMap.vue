@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EventMapPoint } from '#shared/types/event'
+import { spreadMapCoordinates } from '#shared/utils/map-spread'
 
 const props = defineProps<{
   points: EventMapPoint[]
@@ -31,6 +32,8 @@ let prevSelectedId: string | null = null
 /** Au-delà de clusterMaxZoom (12) : plus aucun regroupement */
 const UNCLUSTERED_ZOOM = 13
 let focusToken = 0
+/** Coords affichées (après écartement des doublons de lieu). */
+let displayCoords = new Map<string, [number, number]>()
 
 function setSelectedFeatureState(id: string | null | undefined, force = false) {
   if (!map || !mapReady.value) return
@@ -149,7 +152,7 @@ async function focusPointOnMap(id: string) {
   if (!point) return
 
   const token = ++focusToken
-  const center: [number, number] = [point.longitude, point.latitude]
+  const center: [number, number] = displayCoords.get(id) ?? [point.longitude, point.latitude]
   const source = map.getSource('events') as import('maplibre-gl').GeoJSONSource
 
   setSelectedFeatureState(id)
@@ -196,6 +199,7 @@ function engagementFlag(id: string): 'participate' | 'support' | 'none' {
 }
 
 function toGeoJson(points: EventMapPoint[]) {
+  displayCoords = spreadMapCoordinates(points)
   return {
     type: 'FeatureCollection' as const,
     features: points.map(p => ({
@@ -210,7 +214,7 @@ function toGeoJson(points: EventMapPoint[]) {
       },
       geometry: {
         type: 'Point' as const,
-        coordinates: [p.longitude, p.latitude],
+        coordinates: displayCoords.get(p.id) ?? [p.longitude, p.latitude],
       },
     })),
   }
