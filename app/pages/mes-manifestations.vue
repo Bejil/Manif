@@ -238,7 +238,7 @@ function refDebounced<T>(source: Ref<T>, ms: number) {
       </div>
 
       <!-- Liste -->
-      <div v-if="viewMode === 'list'" class="mt-6 space-y-3">
+      <div v-if="viewMode === 'list'" class="mt-6 space-y-2">
         <p v-if="pending" class="text-sm text-[#454545]">Chargement…</p>
         <p v-else-if="error" class="text-sm text-[#AD291F]">
           Impossible de charger vos manifestations.

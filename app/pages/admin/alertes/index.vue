@@ -168,34 +168,32 @@ async function deleteAlert(a: AlertRow) {
         : undefined"
     />
 
-    <ul v-if="items.length" class="space-y-3">
+    <ul v-if="items.length" class="space-y-2">
       <li
         v-for="a in items"
         :key="a.id"
-        class="rounded-[8px] border border-[#DDDAD3] border-l-[5px] bg-white p-5"
+        class="rounded-[8px] border border-[#DDDAD3] border-l-[5px] bg-white px-3.5 py-2.5"
         :class="statusClass(a.status)"
       >
-        <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="min-w-0 flex-1">
-            <p class="font-extrabold text-[#111111]">
+            <p class="text-sm font-extrabold leading-snug text-[#111111]">
               {{ a.email }}
               <span class="font-semibold text-[#636363]">· {{ statusLabel(a.status) }}</span>
             </p>
-            <p class="mt-1 text-sm text-[#111111]">
+            <p class="mt-0.5 text-xs text-[#111111]">
               {{ a.locationLabel }}
               <span class="text-[#636363]">· {{ a.radiusKm }}&nbsp;km</span>
+              <span class="text-[#636363]"> · {{ a.latitude.toFixed(4) }}, {{ a.longitude.toFixed(4) }}</span>
             </p>
-            <p class="mt-2 text-xs text-[#636363]">
+            <p class="mt-0.5 text-xs text-[#636363]">
               Créée {{ fmtDate(a.createdAt) }}
               <template v-if="a.confirmedAt"> · Confirmée {{ fmtDate(a.confirmedAt) }}</template>
               <template v-if="a.lastNotifiedAt"> · Dernier envoi {{ fmtDate(a.lastNotifiedAt) }}</template>
               <template v-if="a.unsubscribedAt"> · Désinscrit {{ fmtDate(a.unsubscribedAt) }}</template>
             </p>
           </div>
-          <div class="flex shrink-0 flex-col items-end gap-2">
-            <p class="text-[10px] font-bold uppercase tracking-wide text-[#636363]">
-              {{ a.latitude.toFixed(4) }}, {{ a.longitude.toFixed(4) }}
-            </p>
+          <div class="flex shrink-0 items-center gap-2">
             <UiButton
               size="sm"
               variant="outline"

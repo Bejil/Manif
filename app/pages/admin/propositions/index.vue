@@ -168,30 +168,30 @@ function ctaLabel(status: string) {
         :description="emptyCopy.description || undefined"
       />
 
-      <ul v-else class="space-y-3">
+      <ul v-else class="space-y-2">
         <li
           v-for="item in filtered"
           :key="item.id"
-          class="rounded-[8px] border border-[#DDDAD3] border-l-[5px] bg-white p-5"
+          class="rounded-[8px] border border-[#DDDAD3] border-l-[5px] bg-white px-3.5 py-2.5"
           :class="activeAccent"
         >
-          <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="min-w-0 flex-1">
-              <h3 class="font-extrabold text-[#111111]">{{ item.title }}</h3>
-              <p class="mt-1 text-xs font-semibold text-[#636363]">
+              <h3 class="text-sm font-extrabold leading-snug text-[#111111]">{{ item.title }}</h3>
+              <p class="mt-0.5 text-xs font-semibold text-[#636363]">
                 {{ item.cityName }} · {{ item.startAt || 'Date à venir' }} · {{ item.category }}
                 · proposant {{ item.proposerEmailMasked }}
               </p>
               <p
                 v-if="item.rejectionReason && (activeTab === 'changes_requested' || activeTab === 'rejected')"
-                class="mt-2 text-sm"
+                class="mt-0.5 line-clamp-1 text-xs"
                 :class="activeTab === 'rejected' ? 'text-[#AD291F]' : 'text-[#805200]'"
               >
                 « {{ item.rejectionReason }} »
               </p>
               <p
                 v-else-if="activeTab === 'pending_moderation' || activeTab === 'awaiting_verification'"
-                class="mt-2 line-clamp-2 text-sm text-[#454545]"
+                class="mt-0.5 line-clamp-1 text-xs text-[#454545]"
               >
                 {{ item.description }}
               </p>

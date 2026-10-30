@@ -102,30 +102,30 @@ function statusLabel(s: string) {
       :description="filter === 'open' ? 'Aucun signalement ouvert pour le moment.' : undefined"
     />
 
-    <ul v-else class="space-y-3">
+    <ul v-else class="space-y-2">
       <li
         v-for="r in filtered"
         :key="r.id"
-        class="rounded-[8px] border border-[#DDDAD3] border-l-[5px] border-l-[#D1271C] bg-white p-5"
+        class="rounded-[8px] border border-[#DDDAD3] border-l-[5px] border-l-[#D1271C] bg-white px-3.5 py-2.5"
       >
-        <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="min-w-0 flex-1">
-            <p class="font-extrabold text-[#111111]">
+            <p class="text-sm font-extrabold leading-snug text-[#111111]">
               {{ reasonLabel(r.reason) }}
               <span class="font-semibold text-[#636363]">· {{ statusLabel(r.status) }}</span>
             </p>
-            <p class="mt-1 text-sm font-semibold text-[#111111]">
+            <p class="mt-0.5 text-xs font-semibold text-[#111111]">
               {{ r.event?.title || 'Événement introuvable' }}
             </p>
-            <p class="mt-1 text-xs font-semibold text-[#636363]">
+            <p class="mt-0.5 text-xs font-semibold text-[#636363]">
               <template v-if="r.event">
                 {{ r.event.cityName }} · {{ r.event.publicationStatus }} · {{ r.event.displayStatus }}
               </template>
               · {{ new Date(r.createdAt).toLocaleString('fr-FR') }}
             </p>
-            <p v-if="r.details" class="mt-2 line-clamp-2 text-sm text-[#454545]">{{ r.details }}</p>
+            <p v-if="r.details" class="mt-0.5 line-clamp-1 text-xs text-[#454545]">{{ r.details }}</p>
           </div>
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-1.5">
             <NuxtLink :to="`/admin/signalements/${r.id}`">
               <UiButton size="sm">Examiner</UiButton>
             </NuxtLink>

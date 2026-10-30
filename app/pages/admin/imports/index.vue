@@ -956,7 +956,7 @@ watch(
                 <li
                   v-for="c in detailData.candidates.items"
                   :key="c.id"
-                  class="py-4"
+                  class="py-2.5"
                 >
                   <div class="flex items-start gap-3">
                     <div class="flex w-6 shrink-0 justify-center pt-0.5">
@@ -993,12 +993,12 @@ watch(
 
                       <p
                         v-if="c.description"
-                        class="mt-2 text-sm leading-snug text-[#454545]"
+                        class="mt-0.5 line-clamp-1 text-xs leading-snug text-[#454545]"
                       >
                         {{ excerpt(c.description) }}
                       </p>
 
-                      <p class="mt-2 text-xs text-[#636363]">
+                      <p class="mt-0.5 text-xs text-[#636363]">
                         {{ c.cityName }}
                         <template v-if="c.startAt"> · {{ c.startAt.slice(0, 16).replace('T', ' ') }}</template>
                         ·

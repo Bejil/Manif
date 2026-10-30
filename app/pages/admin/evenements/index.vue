@@ -364,7 +364,7 @@ async function bulkDeleteSelected() {
         </span>
       </div>
 
-      <ul class="space-y-3 pb-20">
+      <ul class="space-y-2 pb-20">
         <li
           v-for="e in pageItems"
           :key="e.id"

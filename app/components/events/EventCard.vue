@@ -65,22 +65,22 @@ const dateLabel = computed(() => {
   return formatDate(props.event.startAt, props.event.timezone)
 })
 
-const descriptionPreview = computed(() => excerptText(props.event.description || '', 140))
+const descriptionPreview = computed(() => excerptText(props.event.description || '', 90))
 </script>
 
 <template>
   <article
-    class="group relative border-l-[5px] p-5 transition duration-200 ease-out motion-reduce:transform-none"
+    class="group relative border-l-[5px] px-3.5 py-2.5 transition duration-200 ease-out motion-reduce:transform-none"
     :class="[
       'rounded-[8px] border border-[#DDDAD3] border-l-[5px]',
       selected
-        ? 'z-[1] -translate-y-1 border-l-[#9C6EE8] bg-[#111111] text-[#FFFCF4]'
+        ? 'z-[1] -translate-y-0.5 border-l-[#9C6EE8] bg-[#111111] text-[#FFFCF4]'
         : ['bg-white', shell[event.displayStatus], 'hover:-translate-y-0.5 hover:shadow-lift'],
     ]"
     :aria-current="selected ? 'true' : undefined"
   >
     <div
-      class="flex items-start gap-4"
+      class="flex items-start gap-3"
       :class="staticCard ? '' : 'cursor-pointer'"
       :role="staticCard ? undefined : 'button'"
       :tabindex="staticCard ? undefined : 0"
@@ -89,14 +89,14 @@ const descriptionPreview = computed(() => excerptText(props.event.description ||
       @keydown.space.prevent="!staticCard && $emit('select')"
     >
       <div class="min-w-0 flex-1 text-left">
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
           <StatusBadge :status="event.displayStatus" />
           <span
             v-if="iSupport"
             class="chip inline-flex items-center gap-1"
             :class="selected ? 'bg-[#9C6EE8] text-[#111111]' : 'bg-[#F0E8FC] text-[#4D257D]'"
           >
-            <BrandIcon name="support" :size="12" />
+            <BrandIcon name="support" :size="11" />
             Je soutiens
           </span>
           <span
@@ -104,7 +104,7 @@ const descriptionPreview = computed(() => excerptText(props.event.description ||
             class="chip inline-flex items-center gap-1"
             :class="selected ? 'bg-[#D1271C] text-[#FFFCF4]' : 'bg-[#FDEDEB] text-[#97251B]'"
           >
-            <BrandIcon name="participate" :size="12" />
+            <BrandIcon name="participate" :size="11" />
             Je participe
           </span>
           <span
@@ -114,7 +114,7 @@ const descriptionPreview = computed(() => excerptText(props.event.description ||
             Date à venir
           </span>
           <span
-            class="text-xs font-semibold uppercase tracking-wide"
+            class="text-[11px] font-semibold uppercase tracking-wide"
             :class="selected ? 'text-[#FFFCF4]/55' : 'text-[#636363]'"
           >
             {{ categoryLabel(event.category) }}
@@ -122,14 +122,31 @@ const descriptionPreview = computed(() => excerptText(props.event.description ||
         </div>
 
         <p
-          class="mt-3 text-sm font-bold"
+          class="mt-1 text-xs font-bold"
           :class="selected ? 'text-[#9C6EE8]' : dateClass[event.displayStatus]"
         >
           {{ dateLabel }} · {{ event.cityName }}
+          <template v-if="event.locationRevealed">
+            <span
+              v-if="event.locationName"
+              :class="selected ? 'text-[#FFFCF4]/55' : 'text-[#636363]'"
+            > · {{ event.locationName }}</span>
+            <span
+              v-if="event.latitude == null || event.longitude == null"
+              :class="selected ? 'text-[#FFFCF4]/55' : 'text-[#805200]'"
+            > · Position carte à venir</span>
+          </template>
+          <span
+            v-else
+            class="font-semibold"
+            :class="selected ? 'text-[#9C6EE8]' : 'text-[#805200]'"
+          >
+            · lieu précis à venir
+          </span>
         </p>
 
         <h3
-          class="mt-1.5 text-lg font-extrabold leading-snug"
+          class="mt-0.5 text-base font-extrabold leading-snug"
           :class="selected ? 'text-[#FFFCF4]' : [titleClass[event.displayStatus], 'group-hover:text-[#6735B6]']"
         >
           <NuxtLink
@@ -143,69 +160,43 @@ const descriptionPreview = computed(() => excerptText(props.event.description ||
         </h3>
 
         <p
-          class="mt-1 text-sm"
-          :class="selected ? 'text-[#FFFCF4]/70' : 'text-[#454545]'"
-        >
-          <template v-if="event.locationRevealed">
-            {{ event.locationName }}
-            <span
-              v-if="event.latitude == null || event.longitude == null"
-              class="ml-1"
-              :class="selected ? 'text-[#FFFCF4]/55' : 'text-[#805200]'"
-            >· Position carte à venir</span>
-          </template>
-          <span
-            v-else
-            :class="selected ? 'text-[#FFFCF4]/70' : 'text-[#454545]'"
-          >
-            {{ event.cityName }}
-            <span
-              class="font-semibold"
-              :class="selected ? 'text-[#9C6EE8]' : 'text-[#805200]'"
-            >
-              · lieu précis à venir
-            </span>
-          </span>
-        </p>
-
-        <p
           v-if="descriptionPreview"
-          class="mt-2 line-clamp-2 text-sm leading-relaxed"
+          class="mt-0.5 line-clamp-1 text-xs leading-snug"
           :class="selected ? 'text-[#FFFCF4]/65' : 'text-[#636363]'"
         >
           {{ descriptionPreview }}
         </p>
 
-        <div class="mt-4 flex flex-wrap items-end justify-between gap-3">
-          <div class="flex flex-wrap gap-2 text-xs font-bold">
+        <div class="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap gap-1.5 text-[11px] font-bold">
             <span
-              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5"
+              class="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
               :class="selected
                 ? 'border border-white/25 text-[#FFFCF4]'
                 : 'border border-[#DDDAD3] text-[#4D257D]'"
             >
-              <BrandIcon name="support" :size="14" />
-              {{ event.counts.supports }} soutien{{ event.counts.supports > 1 ? 's' : '' }}
+              <BrandIcon name="support" :size="12" />
+              {{ event.counts.supports }}
             </span>
             <span
-              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5"
+              class="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
               :class="selected
                 ? 'border border-white/25 text-[#FFFCF4]'
                 : 'border border-[#DDDAD3] text-[#97251B]'"
             >
-              <BrandIcon name="participate" :size="14" />
-              {{ event.counts.participations }} déclarée{{ event.counts.participations > 1 ? 's' : '' }}
+              <BrandIcon name="participate" :size="12" />
+              {{ event.counts.participations }}
             </span>
             <span
               v-if="event.publicationStatus === 'draft'"
-              class="inline-flex items-center rounded-full px-2.5 py-1.5"
+              class="inline-flex items-center rounded-full px-2 py-0.5"
               :class="selected ? 'border border-white/25 text-[#FFFCF4]' : 'border border-[#DDDAD3] text-[#805200]'"
             >
               Brouillon
             </span>
             <span
               v-else-if="event.publicationStatus === 'unpublished'"
-              class="inline-flex items-center rounded-full px-2.5 py-1.5"
+              class="inline-flex items-center rounded-full px-2 py-0.5"
               :class="selected ? 'border border-white/25 text-[#FFFCF4]' : 'border border-[#DDDAD3] text-[#636363]'"
             >
               Dépublié
@@ -235,7 +226,7 @@ const descriptionPreview = computed(() => excerptText(props.event.description ||
 
       <div
         v-if="hasActionsSlot"
-        class="flex shrink-0 flex-col gap-2"
+        class="flex shrink-0 flex-col gap-1.5"
         @click.stop
         @keydown.stop
       >

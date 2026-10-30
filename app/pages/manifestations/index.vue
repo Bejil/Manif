@@ -298,7 +298,7 @@ const viewOptions: Array<{ id: ViewMode, label: string }> = [
     >
       <div
         id="agenda-list"
-        class="-mx-2 max-h-[70vh] space-y-3 overflow-y-auto px-2 pb-3 pt-2"
+        class="-mx-2 max-h-[70vh] space-y-2 overflow-y-auto px-2 pb-3 pt-2"
       >
         <p v-if="pending" class="text-sm text-[#454545]">Chargement de l’agenda…</p>
         <p v-else-if="error" class="text-sm text-[#AD291F]">
