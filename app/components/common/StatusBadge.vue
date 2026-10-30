@@ -15,6 +15,15 @@ const styles: Record<DisplayEventStatus, string> = {
 
 <template>
   <span class="chip font-bold tracking-wide" :class="styles[status]">
+    <span
+      v-if="status === 'ongoing'"
+      class="status-radar text-[#FFFCF4]"
+      aria-hidden="true"
+    >
+      <span class="status-radar__ring" />
+      <span class="status-radar__ring status-radar__ring--delay" />
+      <span class="status-radar__core" />
+    </span>
     {{ DISPLAY_STATUS_LABELS[status] }}
   </span>
 </template>

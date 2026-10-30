@@ -34,6 +34,9 @@ const UNCLUSTERED_ZOOM = 13
 let focusToken = 0
 /** Coords affichées (après écartement des doublons de lieu). */
 let displayCoords = new Map<string, [number, number]>()
+/** Marqueurs HTML (pulse CSS) pour les points « en cours » visibles. */
+const ongoingMarkers = new Map<string, import('maplibre-gl').Marker>()
+let syncOngoingScheduled = false
 
 function setSelectedFeatureState(id: string | null | undefined, force = false) {
   if (!map || !mapReady.value) return
@@ -257,6 +260,9 @@ async function initMap() {
         clusterMaxZoom: 12,
         clusterRadius: 42,
         promoteId: 'id',
+        clusterProperties: {
+          has_ongoing: ['any', ['==', ['get', 'displayStatus'], 'ongoing']],
+        },
       })
 
       map.addLayer({
@@ -265,7 +271,12 @@ async function initMap() {
         source: 'events',
         filter: ['has', 'point_count'],
         paint: {
-          'circle-color': '#111111',
+          'circle-color': [
+            'case',
+            ['==', ['get', 'has_ongoing'], true],
+            statusColor.ongoing,
+            '#111111',
+          ],
           'circle-radius': ['step', ['get', 'point_count'], 18, 5, 22, 15, 28],
           'circle-opacity': 0.95,
           'circle-stroke-width': 2,
@@ -335,6 +346,8 @@ async function initMap() {
             'case',
             ['boolean', ['feature-state', 'selected'], false],
             12,
+            ['==', ['get', 'displayStatus'], 'ongoing'],
+            10,
             ['!=', ['get', 'mine'], 'none'],
             11,
             8,
@@ -357,6 +370,9 @@ async function initMap() {
           ],
         },
       })
+
+      map.on('render', scheduleSyncOngoingMarkers)
+      map.on('idle', syncOngoingMarkers)
 
       map.on('click', 'clusters', async (e) => {
         if (!map || !maplibregl) return
@@ -390,11 +406,83 @@ async function initMap() {
   }
 }
 
+function clearOngoingMarkers() {
+  for (const marker of ongoingMarkers.values()) marker.remove()
+  ongoingMarkers.clear()
+}
+
+function createOngoingPulseEl(): HTMLDivElement {
+  const el = document.createElement('div')
+  el.className = 'status-radar status-radar--map'
+  el.setAttribute('aria-hidden', 'true')
+  el.innerHTML = [
+    '<span class="status-radar__ring"></span>',
+    '<span class="status-radar__ring status-radar__ring--delay"></span>',
+    '<span class="status-radar__core"></span>',
+  ].join('')
+  return el
+}
+
+function scheduleSyncOngoingMarkers() {
+  if (syncOngoingScheduled) return
+  syncOngoingScheduled = true
+  requestAnimationFrame(() => {
+    syncOngoingScheduled = false
+    syncOngoingMarkers()
+  })
+}
+
+/** Pulse CSS (fluide) aligné sur les points « en cours » non clusterisés. */
+function syncOngoingMarkers() {
+  if (!map || !maplibregl || !mapReady.value) return
+  if (!map.getLayer('unclustered')) return
+
+  const reduceMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  const features = map.queryRenderedFeatures({ layers: ['unclustered'] })
+  const seen = new Set<string>()
+
+  for (const feature of features) {
+    if (feature.properties?.displayStatus !== 'ongoing') continue
+    const id = String(feature.properties?.id || '')
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+
+    const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
+    const existing = ongoingMarkers.get(id)
+    if (existing) {
+      existing.setLngLat(coords)
+      continue
+    }
+    if (reduceMotion) continue
+
+    const marker = new maplibregl.Marker({
+      element: createOngoingPulseEl(),
+      anchor: 'center',
+      pitchAlignment: 'map',
+      rotationAlignment: 'map',
+    })
+      .setLngLat(coords)
+      .addTo(map)
+    ongoingMarkers.set(id, marker)
+  }
+
+  for (const [id, marker] of ongoingMarkers) {
+    if (seen.has(id)) continue
+    marker.remove()
+    ongoingMarkers.delete(id)
+  }
+}
+
 function refreshGeoJson() {
   if (!map || !mapReady.value) return
   const source = map.getSource('events') as import('maplibre-gl').GeoJSONSource | undefined
   source?.setData(toGeoJson(props.points))
-  nextTick(() => setSelectedFeatureState(props.selectedId, true))
+  nextTick(() => {
+    setSelectedFeatureState(props.selectedId, true)
+    scheduleSyncOngoingMarkers()
+  })
 }
 
 watch(() => props.points, () => refreshGeoJson(), { deep: true })
@@ -425,6 +513,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  clearOngoingMarkers()
   resizeObserver?.disconnect()
   resizeObserver = null
   map?.remove()

@@ -19,9 +19,12 @@ const dateLabel = computed(() => {
   <article
     class="flex h-full min-w-[14rem] flex-col rounded-[8px] border border-[#DDDAD3] border-l-[5px] border-l-[#9C6EE8] bg-white px-3.5 py-2.5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lift motion-reduce:transform-none"
   >
-    <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-[#636363]">
-      {{ categoryLabel(event.category) }}
-    </p>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <StatusBadge v-if="event.displayStatus === 'ongoing'" status="ongoing" />
+      <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-[#636363]">
+        {{ categoryLabel(event.category) }}
+      </p>
+    </div>
     <p class="mt-1 text-xs font-bold text-[#4D257D]">
       {{ dateLabel }} · {{ event.cityName }}
     </p>
