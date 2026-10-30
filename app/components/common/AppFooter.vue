@@ -1,11 +1,22 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
 const year = new Date().getFullYear()
+
+const { data: citiesData } = await useFetch<{
+  items: Array<{ name: string, slug: string, upcoming: number }>
+}>('/api/cities', {
+  query: { limit: 8, upcoming: '1' },
+  server: true,
+  lazy: true,
+  default: () => ({ items: [] }),
+})
+
+const topCities = computed(() => citiesData.value?.items ?? [])
 </script>
 
 <template>
   <footer class="mt-auto bg-[#111111] text-[#FFFCF4]">
-    <div class="container-page grid gap-10 py-14 md:grid-cols-3">
+    <div class="container-page grid gap-10 py-14 md:grid-cols-4">
       <div>
         <BrandLogo on-dark size="md" />
         <p class="mt-4 max-w-xs text-sm text-[#FFFCF4]/70">
@@ -25,6 +36,22 @@ const year = new Date().getFullYear()
           <li><NuxtLink to="/faq" class="hover:text-[#9C6EE8]">FAQ</NuxtLink></li>
           <li><NuxtLink to="/comptage" class="hover:text-[#9C6EE8]">Méthodologie</NuxtLink></li>
           <li><NuxtLink to="/soutenir" class="hover:text-[#9C6EE8]">Soutenir Manif'</NuxtLink></li>
+        </ul>
+      </div>
+      <div>
+        <p class="text-xs font-bold uppercase tracking-[0.14em] text-[#9C6EE8]">Villes</p>
+        <ul class="mt-4 space-y-2.5 text-sm font-medium">
+          <li v-for="c in topCities" :key="c.slug">
+            <NuxtLink
+              :to="`/manifestations/ville/${c.slug}`"
+              class="hover:text-[#9C6EE8]"
+            >
+              {{ c.name }}
+            </NuxtLink>
+          </li>
+          <li v-if="!topCities.length">
+            <NuxtLink to="/manifestations" class="hover:text-[#9C6EE8]">Voir l’agenda</NuxtLink>
+          </li>
         </ul>
       </div>
       <div>

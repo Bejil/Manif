@@ -3,12 +3,10 @@ import type { EventMapPoint } from '#shared/types/event'
 import { FAQ_ITEMS, SEO } from '#shared/content/seo'
 import { useShare } from '../composables/useShare'
 
-useSeoMeta({
+useSiteSeo({
   title: SEO.home.title,
   description: SEO.home.description,
-  ogTitle: SEO.home.title,
-  ogDescription: SEO.home.description,
-  ogImage: '/brand/og-default.svg',
+  path: '/',
 })
 
 const homeFilter = { statuses: 'upcoming,ongoing' }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { EventPublic } from '#shared/types/event'
 import type { DisplayEventStatus } from '#shared/constants/statuses'
+import { createCitySlug } from '#shared/utils/city-slug'
 import { DATE_PENDING_LABEL } from '#shared/utils/event-time'
 import { excerptText } from '#shared/utils/text'
 
@@ -66,6 +67,7 @@ const dateLabel = computed(() => {
 })
 
 const descriptionPreview = computed(() => excerptText(props.event.description || '', 90))
+const cityPath = computed(() => `/manifestations/ville/${createCitySlug(props.event.cityName)}`)
 </script>
 
 <template>
@@ -125,7 +127,13 @@ const descriptionPreview = computed(() => excerptText(props.event.description ||
           class="mt-1 text-xs font-bold"
           :class="selected ? 'text-[#9C6EE8]' : dateClass[event.displayStatus]"
         >
-          {{ dateLabel }} · {{ event.cityName }}
+          {{ dateLabel }} ·
+          <NuxtLink
+            :to="cityPath"
+            class="hover:underline"
+            :class="selected ? 'text-[#9C6EE8]' : ''"
+            @click.stop
+          >{{ event.cityName }}</NuxtLink>
           <template v-if="event.locationRevealed">
             <span
               v-if="event.locationName"

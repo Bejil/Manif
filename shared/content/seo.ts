@@ -64,6 +64,19 @@ export const SEO = {
   },
 } as const
 
+/** Meta pour une page ville (pilier SEO local). */
+export function citySeo(cityName: string, upcomingCount: number) {
+  const countLabel = upcomingCount > 0
+    ? `${upcomingCount} manifestation${upcomingCount > 1 ? 's' : ''} à venir`
+    : 'agenda des manifestations'
+  return {
+    title: `Manifestations à ${cityName} — Agenda et carte | Manif'`,
+    description:
+      `Trouvez les manifestations à ${cityName} et alentours : ${countLabel}, infos pratiques, carte et comptage citoyen — sans compte, sur Manif'.`,
+  }
+}
+
+
 /**
  * FAQ publique (page /faq + extrait accueil + JSON-LD FAQPage).
  * Réponses en prose naturelle, orientées questions réelles / SEO.

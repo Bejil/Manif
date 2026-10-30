@@ -3,7 +3,6 @@ import { SEO } from '#shared/content/seo'
 import { resolveKofiConfig } from '#shared/utils/kofi'
 
 const config = useRuntimeConfig()
-const siteUrl = computed(() => String(config.public.siteUrl || 'https://manif.info').replace(/\/$/, ''))
 
 const kofi = computed(() => resolveKofiConfig({
   username: String(config.public.kofiUsername || ''),
@@ -16,18 +15,10 @@ const beneficiaryName = computed(() =>
   || 'le créateur indépendant de Manif\'',
 )
 
-useSeoMeta({
+useSiteSeo({
   title: SEO.soutenir.title,
   description: SEO.soutenir.description,
-  ogTitle: SEO.soutenir.title,
-  ogDescription: SEO.soutenir.description,
-  ogUrl: () => `${siteUrl.value}/soutenir`,
-  ogImage: '/brand/og-default.svg',
-  twitterCard: 'summary_large_image',
-})
-
-useHead({
-  link: [{ rel: 'canonical', href: `${siteUrl.value}/soutenir` }],
+  path: '/soutenir',
 })
 
 const reasons = [

@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { SEO } from '#shared/content/seo'
 
-useSeoMeta({
+useSiteSeo({
   title: SEO.contact.title,
   description: SEO.contact.description,
-  ogTitle: SEO.contact.title,
-  ogDescription: SEO.contact.description,
+  path: '/contact',
 })
 const config = useRuntimeConfig()
 </script>

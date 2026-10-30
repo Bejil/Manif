@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { SEO } from '#shared/content/seo'
 
-useSeoMeta({
+useSiteSeo({
   title: SEO.comptage.title,
   description: SEO.comptage.description,
-  ogTitle: SEO.comptage.title,
-  ogDescription: SEO.comptage.description,
+  path: '/comptage',
 })
 </script>
 

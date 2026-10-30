@@ -1,33 +1,24 @@
 <script setup lang="ts">
 import { FAQ_ITEMS, SEO } from '#shared/content/seo'
 
-useSeoMeta({
-  title: SEO.faq.title,
-  description: SEO.faq.description,
-  ogTitle: SEO.faq.title,
-  ogDescription: SEO.faq.description,
-})
-
 const open = ref<number | null>(0)
 
-useHead({
-  script: [
-    {
-      type: 'application/ld+json',
-      children: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'FAQPage',
-        mainEntity: FAQ_ITEMS.map(item => ({
-          '@type': 'Question',
-          name: item.q,
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: item.a.replace(/\n\n/g, ' '),
-          },
-        })),
-      }),
-    },
-  ],
+useSiteSeo({
+  title: SEO.faq.title,
+  description: SEO.faq.description,
+  path: '/faq',
+  jsonLd: {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: FAQ_ITEMS.map(item => ({
+      '@type': 'Question',
+      name: item.q,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.a.replace(/\n\n/g, ' '),
+      },
+    })),
+  },
 })
 </script>
 

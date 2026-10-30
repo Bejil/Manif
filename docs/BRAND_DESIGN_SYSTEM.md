@@ -45,7 +45,7 @@ Ne pas utiliser Anton pour paragraphes, formulaires ou textes longs.
 | `public/brand/manif.logo.svg` | Symbole « bandeaux de voix » (violet / ivoire / rouge sur noir) |
 | `public/brand/manif.icons.svg` | Sprite pictogrammes (`#mf-voices`, `#mf-map`, …) |
 | `public/favicon.svg` | Favicon (= logo) |
-| `public/brand/og-default.svg` | Open Graph |
+| `public/brand/og-default.jpg` | Open Graph (1200×630) |
 
 Composants : `<BrandLogo />`, `<BrandIcon name="support" />`, `<HighlightedText tone="violet|red" />`.
 

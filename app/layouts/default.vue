@@ -1,5 +1,25 @@
 <script setup lang="ts">
+import { organizationJsonLd, websiteJsonLd } from '#shared/utils/seo-schema'
+
+const config = useRuntimeConfig()
 const { toast: alertToast, dismissToast } = useHomeAlertSection()
+
+const siteUrl = computed(() =>
+  String(config.public.siteUrl || 'https://manif.info').replace(/\/$/, ''),
+)
+
+useHead(() => ({
+  script: [
+    {
+      type: 'application/ld+json',
+      children: JSON.stringify(organizationJsonLd(siteUrl.value)),
+    },
+    {
+      type: 'application/ld+json',
+      children: JSON.stringify(websiteJsonLd(siteUrl.value)),
+    },
+  ],
+}))
 </script>
 
 <template>

@@ -1,9 +1,10 @@
+import sharp from 'sharp'
 import { DateTime } from 'luxon'
 import { getEventBySlug } from '../../../services/events-repository'
 import { notFound } from '../../../utils/errors'
 
 /**
- * Image Open Graph SVG (1200×630) — compatible réseaux sociaux modernes.
+ * Image Open Graph PNG (1200×630) — compatible Facebook / LinkedIn / X.
  * URL canonique : /api/og/event/:slug
  */
 export default defineEventHandler(async (event) => {
@@ -41,9 +42,11 @@ export default defineEventHandler(async (event) => {
   <rect x="72" y="470" width="120" height="6" rx="2" fill="#9C6EE8"/>
 </svg>`
 
-  setHeader(event, 'Content-Type', 'image/svg+xml; charset=utf-8')
-  setHeader(event, 'Cache-Control', 'public, max-age=3600')
-  return svg
+  const png = await sharp(Buffer.from(svg)).png().toBuffer()
+
+  setHeader(event, 'Content-Type', 'image/png')
+  setHeader(event, 'Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+  return png
 })
 
 function truncate(s: string, n: number) {

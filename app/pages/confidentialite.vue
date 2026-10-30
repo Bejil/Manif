@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { SEO } from '#shared/content/seo'
 
-useSeoMeta({
+useSiteSeo({
   title: SEO.confidentialite.title,
   description: SEO.confidentialite.description,
-  ogTitle: SEO.confidentialite.title,
-  ogDescription: SEO.confidentialite.description,
+  path: '/confidentialite',
 })
 const config = useRuntimeConfig()
 </script>

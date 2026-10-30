@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { SEO } from '#shared/content/seo'
 
-useSeoMeta({
+useSiteSeo({
   title: SEO.guide.title,
   description: SEO.guide.description,
-  ogTitle: SEO.guide.title,
-  ogDescription: SEO.guide.description,
+  path: '/guide',
 })
 
 const sections = [

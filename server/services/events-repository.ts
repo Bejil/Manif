@@ -3,6 +3,7 @@ import type { EventListQuery, EventMapPoint, EventPublic, EventRecord } from '#s
 import type { DisplayEventStatus } from '#shared/constants/statuses'
 import { computeDisplayStatus, resolveEndAt } from '#shared/utils/event-time'
 import { publicLocationView } from '#shared/utils/location'
+import { createCitySlug, citySlugMatches } from '#shared/utils/city-slug'
 import { matchesSearch, normalizeSearchText, titleSimilarity } from '#shared/utils/search'
 import { excerptText } from '#shared/utils/text'
 import { eventToRow, rowToEvent } from '../utils/mappers'
@@ -376,6 +377,91 @@ export async function listMapEvents(query: EventListQuery): Promise<EventMapPoin
       startAt: e.startAt,
       category: e.category,
     }))
+}
+
+export interface CityPublicSummary {
+  name: string
+  slug: string
+  total: number
+  upcoming: number
+  /** Dernière MAJ d’un événement publié dans cette ville (ISO). */
+  updatedAt: string | null
+}
+
+/** Villes ayant au moins un événement publié (pour pages SEO + sitemap). */
+export async function listPublishedCities(): Promise<CityPublicSummary[]> {
+  const published = await fetchPublishedForList()
+  const map = new Map<string, CityPublicSummary & { nameCounts: Map<string, number> }>()
+
+  for (const record of published) {
+    const pub = toPublic(record, { supports: 0, participations: 0 })
+    const slug = createCitySlug(pub.cityName)
+    let row = map.get(slug)
+    if (!row) {
+      row = {
+        name: pub.cityName,
+        slug,
+        total: 0,
+        upcoming: 0,
+        updatedAt: null,
+        nameCounts: new Map(),
+      }
+      map.set(slug, row)
+    }
+    row.total += 1
+    row.nameCounts.set(pub.cityName, (row.nameCounts.get(pub.cityName) || 0) + 1)
+    if (pub.displayStatus === 'upcoming' || pub.displayStatus === 'ongoing') {
+      row.upcoming += 1
+    }
+    const stamp = pub.updatedAt || pub.publishedAt || pub.createdAt
+    if (stamp && (!row.updatedAt || stamp > row.updatedAt)) row.updatedAt = stamp
+  }
+
+  return [...map.values()]
+    .map(({ nameCounts, ...rest }) => {
+      let bestName = rest.name
+      let best = 0
+      for (const [name, count] of nameCounts) {
+        if (count > best) {
+          best = count
+          bestName = name
+        }
+      }
+      return { ...rest, name: bestName }
+    })
+    .sort((a, b) => b.upcoming - a.upcoming || b.total - a.total || a.name.localeCompare(b.name, 'fr'))
+}
+
+export async function resolvePublishedCityBySlug(slug: string): Promise<CityPublicSummary | null> {
+  const cities = await listPublishedCities()
+  return cities.find(c => c.slug === slug.trim().toLowerCase()) ?? null
+}
+
+/** Événements d’une ville (filtre exact via slug), pour page pilier SEO. */
+export async function listEventsByCitySlug(
+  slug: string,
+  query: Omit<EventListQuery, 'city'> = {},
+) {
+  const city = await resolvePublishedCityBySlug(slug)
+  if (!city) return { city: null, items: [] as EventPublic[], total: 0, page: 1, pageSize: query.pageSize ?? 20 }
+
+  const published = await fetchPublishedForList()
+  const provisional = published
+    .map(e => toPublic(e, { supports: 0, participations: 0 }))
+    .filter(e => citySlugMatches(e.cityName, slug))
+
+  const filtered = filterPublic(provisional, { ...query, city: undefined })
+  const pageSize = query.pageSize ?? 20
+  const page = query.page ?? 1
+  const start = (page - 1) * pageSize
+  const pageItems = filtered.slice(start, start + pageSize)
+  const countsMap = await getEventCountsBatch(pageItems.map(e => e.id))
+  const items = pageItems.map(e => slimListItem({
+    ...e,
+    counts: countsMap.get(e.id) ?? { supports: 0, participations: 0 },
+  }))
+
+  return { city, items, total: filtered.length, page, pageSize }
 }
 
 export async function findSimilarEvents(input: {

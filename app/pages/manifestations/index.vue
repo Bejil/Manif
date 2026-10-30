@@ -4,13 +4,20 @@ import type { EventMapPoint, EventPublic } from '#shared/types/event'
 import { SEO } from '#shared/content/seo'
 import { excerptText } from '#shared/utils/text'
 
-useSeoMeta({
+useSiteSeo({
   title: SEO.manifestations.title,
   description: SEO.manifestations.description,
-  ogTitle: SEO.manifestations.title,
-  ogDescription: SEO.manifestations.description,
-  ogImage: '/brand/og-default.svg',
+  path: '/manifestations',
 })
+
+const { data: citiesData } = await useFetch<{
+  items: Array<{ name: string, slug: string }>
+}>('/api/cities', {
+  query: { limit: 10, upcoming: '1' },
+  lazy: true,
+  default: () => ({ items: [] }),
+})
+const topCities = computed(() => citiesData.value?.items ?? [])
 
 type ViewMode = 'list' | 'calendar' | 'map'
 
@@ -274,6 +281,21 @@ const viewOptions: Array<{ id: ViewMode, label: string }> = [
       v-model:category="category"
       v-model:statuses="statuses"
     />
+
+    <div
+      v-if="topCities.length"
+      class="mt-4 flex flex-wrap items-center gap-2 text-sm"
+    >
+      <span class="text-xs font-bold uppercase tracking-wide text-[#636363]">Villes</span>
+      <NuxtLink
+        v-for="c in topCities"
+        :key="c.slug"
+        :to="`/manifestations/ville/${c.slug}`"
+        class="rounded-[4px] border border-[#DDDAD3] bg-white px-2.5 py-1 text-xs font-bold text-[#111111] hover:border-[#9C6EE8] hover:text-[#6735B6]"
+      >
+        {{ c.name }}
+      </NuxtLink>
+    </div>
 
     <div class="mt-4 flex gap-2" role="tablist" aria-label="Mode d’affichage">
       <button

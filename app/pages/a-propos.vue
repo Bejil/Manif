@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { SEO } from '#shared/content/seo'
 
-useSeoMeta({
+useSiteSeo({
   title: SEO.aPropos.title,
   description: SEO.aPropos.description,
-  ogTitle: SEO.aPropos.title,
-  ogDescription: SEO.aPropos.description,
+  path: '/a-propos',
 })
 </script>
 

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { SEO } from '#shared/content/seo'
 
-useSeoMeta({
+useSiteSeo({
   title: SEO.mentions.title,
   description: SEO.mentions.description,
+  path: '/mentions-legales',
 })
 const config = useRuntimeConfig()
 

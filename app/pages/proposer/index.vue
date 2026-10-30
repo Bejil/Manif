@@ -3,11 +3,10 @@ import { EVENT_CATEGORIES } from '#shared/constants/categories'
 
 import { SEO } from '#shared/content/seo'
 
-useSeoMeta({
+useSiteSeo({
   title: SEO.proposer.title,
   description: SEO.proposer.description,
-  ogTitle: SEO.proposer.title,
-  ogDescription: SEO.proposer.description,
+  path: '/proposer',
 })
 
 const route = useRoute()

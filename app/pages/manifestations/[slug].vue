@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { EventPublic } from '#shared/types/event'
 import { REPORT_REASONS } from '#shared/constants/statuses'
+import { createCitySlug } from '#shared/utils/city-slug'
+import { breadcrumbJsonLd, eventJsonLd } from '#shared/utils/seo-schema'
 
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -14,17 +16,25 @@ if (error.value || !event.value) {
 
 const { formatDate, formatTimeRange, categoryLabel } = useEventFormat()
 
+const siteUrl = computed(() =>
+  String(config.public.siteUrl || 'https://manif.info').replace(/\/$/, ''),
+)
+
 const eventShareUrl = computed(
-  () => `${config.public.siteUrl}/manifestations/${event.value!.slug}`,
+  () => `${siteUrl.value}/manifestations/${event.value!.slug}`,
+)
+
+const cityPath = computed(
+  () => `/manifestations/ville/${createCitySlug(event.value!.cityName)}`,
 )
 
 const ogImage = computed(() => {
   const first = event.value?.imageUrls?.[0]
   if (first) return first
-  return `${config.public.siteUrl}/api/og/event/${event.value!.slug}`
+  return `/api/og/event/${event.value!.slug}`
 })
 
-useSeoMeta({
+useSiteSeo({
   title: () => `${event.value!.title} — ${event.value!.cityName} | Manif'`,
   description: () => {
     const e = event.value!
@@ -32,16 +42,17 @@ useSeoMeta({
     const excerpt = e.description.replace(/\s+/g, ' ').trim().slice(0, 110)
     return `${e.cityName} · ${date}. ${excerpt}${excerpt.length >= 110 ? '…' : ''}`
   },
-  ogTitle: () => `${event.value!.title} — Manif'`,
-  ogDescription: () => `${event.value!.cityName} · ${formatDate(event.value!.startAt, event.value!.timezone)} · Soutenez ou déclarez votre participation`,
-  ogUrl: () => `${config.public.siteUrl}/manifestations/${event.value!.slug}`,
+  path: () => `/manifestations/${event.value!.slug}`,
   ogImage: () => ogImage.value,
-  twitterCard: 'summary_large_image',
-  twitterImage: () => ogImage.value,
-})
-
-useHead({
-  link: [{ rel: 'canonical', href: `${config.public.siteUrl}/manifestations/${event.value!.slug}` }],
+  jsonLd: () => [
+    eventJsonLd(siteUrl.value, event.value!),
+    breadcrumbJsonLd(siteUrl.value, [
+      { name: 'Accueil', path: '/' },
+      { name: 'Manifestations', path: '/manifestations' },
+      { name: event.value!.cityName, path: cityPath.value },
+      { name: event.value!.title, path: `/manifestations/${event.value!.slug}` },
+    ]),
+  ],
 })
 
 const reportOpen = ref(false)
@@ -102,10 +113,12 @@ async function submitReport() {
 <template>
   <div v-if="event">
     <PageHero compact>
-      <nav class="mb-6 text-sm text-[#FFFCF4]/60">
+      <nav class="mb-6 text-sm text-[#FFFCF4]/60" aria-label="Fil d’Ariane">
+        <NuxtLink to="/" class="font-medium hover:text-[#9C6EE8]">Accueil</NuxtLink>
+        <span aria-hidden="true"> / </span>
         <NuxtLink to="/manifestations" class="font-medium hover:text-[#9C6EE8]">Agenda</NuxtLink>
         <span aria-hidden="true"> / </span>
-        <span class="text-[#FFFCF4]">{{ event.cityName }}</span>
+        <NuxtLink :to="cityPath" class="font-medium hover:text-[#9C6EE8]">{{ event.cityName }}</NuxtLink>
       </nav>
 
       <div class="flex flex-wrap items-center gap-2">
@@ -179,7 +192,11 @@ async function submitReport() {
           </div>
           <div>
             <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Ville</p>
-            <p class="mt-1 font-semibold text-[#111111]">{{ event.cityName }}</p>
+            <p class="mt-1 font-semibold text-[#111111]">
+              <NuxtLink :to="cityPath" class="hover:text-[#6735B6] hover:underline">
+                {{ event.cityName }}
+              </NuxtLink>
+            </p>
           </div>
           <div v-if="event.organizerName">
             <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#636363]">Organisateur</p>

@@ -34,8 +34,12 @@ export default defineNuxtConfig({
         { name: 'theme-color', content: '#111111' },
         { property: 'og:site_name', content: "Manif'" },
         { property: 'og:locale', content: 'fr_FR' },
-        { property: 'og:image', content: '/brand/og-default.svg' },
+        { property: 'og:image', content: '/brand/og-default.jpg' },
+        { property: 'og:image:width', content: '1200' },
+        { property: 'og:image:height', content: '630' },
+        { property: 'og:image:type', content: 'image/jpeg' },
         { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:image', content: '/brand/og-default.jpg' },
       ],
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
@@ -120,7 +124,7 @@ export default defineNuxtConfig({
     experimental: {
       openAPI: false,
     },
-    /** Cron déclaré dans vercel.json → GET /api/cron/imports */
+    /** sharp pour OG PNG ; Cron Vercel → GET /api/cron/imports */
     vercel: {
       functions: {
         maxDuration: 300,
