@@ -14,6 +14,6 @@ Dernière vérification : engagements **soutien + participation déclarée**, Su
 ## Décisions produit
 
 - Éditeur : Manif' / contact@manif.info — https://manif.info
-- `PARTICIPATION_ENABLED=true` (flag de collecte globale)
+- `NUXT_PUBLIC_ENGAGEMENTS_ENABLED=true` (flag de collecte globale)
 - Consentement case à cocher avant 1ʳᵉ déclaration
 - Revue juriste externe : recommandée, non bloquante pour le MVP fonctionnel

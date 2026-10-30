@@ -39,8 +39,6 @@ export default defineEventHandler(async (event) => {
     eventScopedToken: parsed.data.eventScopedToken,
     action: parsed.data.action,
     pepper: config.participationTokenPepper,
-    participationEnabled: isFlagEnabled(
-      config.public.engagementsEnabled ?? config.public.participationEnabled,
-    ),
+    participationEnabled: isFlagEnabled(config.public.engagementsEnabled),
   })
 })

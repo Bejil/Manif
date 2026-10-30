@@ -120,7 +120,6 @@ Vercel → Project → **Settings → Environment Variables**. Coller au minimum
 | `SUPABASE_SERVICE_ROLE_KEY` + `NUXT_SUPABASE_SERVICE_ROLE_KEY` | **service_role** / `sb_secret_…` — jamais la clé anon |
 | `PARTICIPATION_TOKEN_PEPPER` | chaîne longue aléatoire |
 | `ADMIN_SESSION_SECRET` | chaîne longue aléatoire |
-| `RATE_LIMIT_SALT` | chaîne aléatoire |
 | `NUXT_ADMIN_EMAIL` / `ADMIN_EMAIL` | `contact@manif.info` |
 | `NUXT_ADMIN_PASSWORD` / `ADMIN_PASSWORD` | mot de passe fort |
 | `NUXT_PUBLIC_TURNSTILE_SITE_KEY` | site key |
@@ -177,7 +176,7 @@ node .output/server/index.mjs
 - [ ] DNS `manif.info` → hébergeur + HTTPS
 - [ ] Mentions légales complètes
 - [ ] `PRIVACY_REVIEW.md` validé
-- [ ] `PARTICIPATION_ENABLED=false` sauf validation
+- [ ] `NUXT_PUBLIC_ENGAGEMENTS_ENABLED=false` sauf validation
 - [ ] Seed de démarrage remplacé ou vidé
 - [ ] Turnstile actif (domaine `manif.info` enregistré)
 - [ ] Resend : domaine `manif.info` (SPF/DKIM) + `EMAIL_FROM`

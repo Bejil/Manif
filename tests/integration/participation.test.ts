@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { createHash } from 'node:crypto'
 
 vi.stubGlobal('useRuntimeConfig', () => ({
-  public: { useMockDb: true, participationEnabled: true },
+  public: { useMockDb: true, engagementsEnabled: true },
   participationTokenPepper: 'test-pepper',
   supabaseUrl: '',
   supabaseServiceRoleKey: '',
@@ -28,7 +28,6 @@ const {
 const { buildDemoEvents } = await import('../../server/services/seed-data')
 const {
   getEventCounts,
-  invalidateParticipationsForEvent,
   upsertEngagement,
 } = await import('../../server/services/engagements-repository')
 const {
@@ -143,25 +142,7 @@ describe('engagements mock store', () => {
     expect(res.state.participating).toBe(true)
   })
 
-  it('9. invalide les participations lors d\'un report (soutiens conservés)', async () => {
-    const event = getMockStore().events.find(e => e.cityName === 'Lyon')!
-    const token = 'tok-postpone-fffffff'
-    await act(event.id, token, 'support')
-    await act(event.id, token, 'participate')
-    await invalidateParticipationsForEvent(event.id)
-    const row = getMockStore().engagements.find(
-      e => e.eventId === event.id
-        && e.eventScopedTokenDigest === digestParticipationToken(event.id, token, pepper),
-    )
-    expect(row?.supportsAt).toBeTruthy()
-    expect(row?.participatesAt).toBeNull()
-    expect(row?.participationKind).toBeNull()
-    const counts = await getEventCounts(event.id)
-    expect(counts.supports).toBe(1)
-    expect(counts.participations).toBe(0)
-  })
-
-  it('10. déduplique et garde les compteurs cohérents', async () => {
+  it('9. déduplique et garde les compteurs cohérents', async () => {
     const event = getMockStore().events.find(e => e.cityName === 'Lyon')!
     const token = 'tok-idempotent-ggggg'
     await act(event.id, token, 'support')

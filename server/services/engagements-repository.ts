@@ -46,19 +46,7 @@ export async function getEventCountsBatch(eventIds: string[]) {
     .select('event_id, supports_at, participates_at')
     .in('event_id', eventIds)
 
-  if (error) {
-    const legacy = await supabase
-      .from('participations')
-      .select('event_id, intended_at, attended_at')
-      .in('event_id', eventIds)
-    if (legacy.error) throw createError({ statusCode: 500, statusMessage: error.message })
-    for (const row of legacy.data ?? []) {
-      const cur = result.get(row.event_id as string) ?? empty()
-      if (row.intended_at || row.attended_at) cur.participations += 1
-      result.set(row.event_id as string, cur)
-    }
-    return result
-  }
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
   for (const row of data ?? []) {
     const id = row.event_id as string
@@ -107,9 +95,6 @@ export async function upsertEngagement(input: {
   }
   return supabaseUpsert(input.eventId, digest, input.action, timeInput)
 }
-
-/** @deprecated */
-export const upsertParticipation = upsertEngagement
 
 async function mockUpsert(
   eventId: string,
@@ -339,36 +324,4 @@ export async function eraseEngagementByToken(input: {
     .select('id')
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
   return { deleted: (data?.length ?? 0) > 0 }
-}
-
-/** @deprecated */
-export const eraseParticipationByToken = eraseEngagementByToken
-
-/** Invalide les participations lors d'un report (soutiens conservés) */
-export async function invalidateParticipationsForEvent(eventId: string) {
-  if (useMockDb()) {
-    const store = getMockStore()
-    for (const e of store.engagements.filter(x => x.eventId === eventId)) {
-      e.participatesAt = null
-      e.participationKind = null
-      e.updatedAt = nowIso()
-    }
-    store.engagements = store.engagements.filter(
-      e => e.eventId !== eventId || e.supportsAt || e.participatesAt,
-    )
-    return
-  }
-  const supabase = getServiceSupabase()
-  await supabase.from('engagements').update({
-    participates_at: null,
-    participation_kind: null,
-    updated_at: nowIso(),
-  }).eq('event_id', eventId).not('participates_at', 'is', null)
-
-  // Supprime les lignes sans aucun engagement
-  await supabase.from('engagements')
-    .delete()
-    .eq('event_id', eventId)
-    .is('supports_at', null)
-    .is('participates_at', null)
 }

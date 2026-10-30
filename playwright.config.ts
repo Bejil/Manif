@@ -22,7 +22,6 @@ export default defineConfig({
       HOST: '127.0.0.1',
       NUXT_PUBLIC_USE_MOCK_DB: 'true',
       NUXT_PUBLIC_ENGAGEMENTS_ENABLED: 'true',
-      NUXT_PUBLIC_PARTICIPATION_ENABLED: 'true',
       PARTICIPATION_TOKEN_PEPPER: 'e2e-pepper',
       ADMIN_SESSION_SECRET: 'e2e-admin-secret',
       ADMIN_EMAIL: 'contact@manif.info',

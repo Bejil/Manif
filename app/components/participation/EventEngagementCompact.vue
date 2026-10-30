@@ -13,10 +13,7 @@ const config = useRuntimeConfig()
 const { getOrCreateToken, getLocalState, setLocalState } = useParticipationToken(props.event.id)
 
 const collectionEnabled = computed(() =>
-  isFlagEnabled(
-    config.public.engagementsEnabled
-    ?? config.public.participationEnabled,
-  ),
+  isFlagEnabled(config.public.engagementsEnabled),
 )
 
 const counts = reactive({

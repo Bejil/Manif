@@ -120,10 +120,6 @@ export const engagementUpsertSchema = z.object({
   turnstileToken: z.string().min(1).optional(),
 })
 
-/** @deprecated alias — préférer engagementUpsertSchema */
-export const participationUpsertSchema = engagementUpsertSchema
-
-
 export const reportCreateSchema = z.object({
   reason: z.enum(reportReasonIds),
   /** Vide autorisé ; sinon 10 caractères minimum */

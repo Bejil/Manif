@@ -90,11 +90,10 @@ function makeStartingRun(): ImportRunRecord {
 
 const candidatesPage = ref(1)
 
-/** Liste = nouveaux candidats uniquement (créations de l’import). */
+/** Liste = nouveaux candidats encore en brouillon / dépubliés. */
 const candidatesQuery = computed(() => ({
   page: candidatesPage.value,
   pageSize: 30,
-  kind: 'new',
 }))
 
 const RUN_FINISHED = new Set(['completed', 'cancelled', 'failed'])

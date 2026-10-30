@@ -53,25 +53,6 @@ function emptyStore(): MockStore {
   }
 }
 
-function migrateLegacyParticipations(store: MockStore & { participations?: Array<Record<string, unknown>> }) {
-  if (store.engagements?.length) return
-  const legacy = store.participations
-  if (!legacy?.length) {
-    store.engagements = store.engagements || []
-    return
-  }
-  store.engagements = legacy.map(p => ({
-    id: String(p.id),
-    eventId: String(p.eventId),
-    eventScopedTokenDigest: String(p.eventScopedTokenDigest),
-    supportsAt: null,
-    participatesAt: (p.intendedAt || p.attendedAt || null) as string | null,
-    participationKind: (p.intendedAt ? 'planned' : p.attendedAt ? 'during' : null) as EngagementRecord['participationKind'],
-    updatedAt: String(p.updatedAt || nowIso()),
-  }))
-  delete store.participations
-}
-
 export function getMockStore(): MockStore {
   const g = globalThis as typeof globalThis & { [globalKey]?: MockStore }
   if (!g[globalKey]) {
@@ -79,7 +60,7 @@ export function getMockStore(): MockStore {
   }
   const store = g[globalKey]!
   if (!store.eventAlerts) store.eventAlerts = []
-  migrateLegacyParticipations(store as MockStore & { participations?: Array<Record<string, unknown>> })
+  if (!store.engagements) store.engagements = []
   return store
 }
 

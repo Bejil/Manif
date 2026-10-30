@@ -63,40 +63,28 @@ export default defineNuxtConfig({
     supabaseUrl: process.env.SUPABASE_URL || '',
     resendApiKey: process.env.RESEND_API_KEY || '',
     emailFrom: process.env.EMAIL_FROM || "Manif' <contact@manif.info>",
-    turnstileSecretKey:
-      process.env.TURNSTILE_SECRET_KEY
-      || process.env.TURNSTILE_SECRET
-      || '',
+    turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || '',
     /** Hostnames frontend autorisés (siteverify). Prod : sans localhost. */
     turnstileHostnames:
       process.env.TURNSTILE_HOSTNAMES
       || 'localhost,127.0.0.1',
     participationTokenPepper: process.env.PARTICIPATION_TOKEN_PEPPER || 'dev-pepper-change-me',
     adminSessionSecret: process.env.ADMIN_SESSION_SECRET || 'dev-admin-secret-change-me',
-    // Surcharge possible via NUXT_ADMIN_EMAIL / NUXT_ADMIN_PASSWORD (évite le shell)
     adminEmail: process.env.NUXT_ADMIN_EMAIL || process.env.ADMIN_EMAIL || 'contact@manif.info',
     adminPassword:
       process.env.NUXT_ADMIN_PASSWORD
       || process.env.ADMIN_PASSWORD
       || (process.env.NODE_ENV === 'production' ? '' : 'dev-admin-change-me'),
-    rateLimitSalt: process.env.RATE_LIMIT_SALT || 'dev-rate-salt',
-    /** Secret Vercel Cron (Authorization: Bearer …). Aussi lu via process.env.CRON_SECRET. */
+    /** Secret Vercel Cron (Authorization: Bearer …). */
     cronSecret: process.env.CRON_SECRET || '',
-    /** Import quotidien : sources CSV (défaut = toutes). */
     importCronSources: process.env.IMPORT_CRON_SOURCES || '',
-    /** draft | published (défaut published). */
     importCronMode: process.env.IMPORT_CRON_MODE || 'published',
-    /** Budget ms par invocation avant enchaînement (défaut 240000). */
     importCronBudgetMs: process.env.IMPORT_CRON_BUDGET_MS || '240000',
-    /** false pour couper le cron sans retirer la schedule. */
     importCronEnabled: process.env.IMPORT_CRON_ENABLED !== 'false',
-    /** false pour couper le cron d’alertes e-mail. */
     alertsCronEnabled: process.env.ALERTS_CRON_ENABLED !== 'false',
 
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://manif.info',
-      siteName: "Manif'",
-      tagline: 'L’agenda citoyen des manifestations en France.',
       turnstileSiteKey: process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY || '',
       mapStyleUrl:
         process.env.NUXT_PUBLIC_MAP_STYLE_URL
@@ -104,27 +92,11 @@ export default defineNuxtConfig({
       mapAttribution:
         process.env.NUXT_PUBLIC_MAP_ATTRIBUTION
         || '© OpenStreetMap © OpenFreeMap',
-      /**
-       * Ko-fi : widget flottant + liens /soutenir.
-       * NUXT_PUBLIC_KOFI_USERNAME=manif (prioritaire)
-       * ou NUXT_PUBLIC_KOFI_URL=https://ko-fi.com/manif
-       */
       kofiUsername: process.env.NUXT_PUBLIC_KOFI_USERNAME || '',
-      kofiUrl:
-        process.env.NUXT_PUBLIC_KOFI_URL
-        || process.env.NUXT_PUBLIC_DONATE_URL
-        || '',
-      /** Montants suggérés sur /soutenir (ex. 1,5,10) */
-      kofiAmounts: process.env.NUXT_PUBLIC_KOFI_AMOUNTS || '1,5,10',
-      /**
-       * Collecte soutien/participation (MVP actif).
-       * Opt-out uniquement : NUXT_PUBLIC_ENGAGEMENTS_ENABLED=false
-       * Ne pas réutiliser NUXT_PUBLIC_PARTICIPATION_ENABLED (souvent forcé à false dans le shell).
-       */
+      kofiUrl: process.env.NUXT_PUBLIC_KOFI_URL || '',
+      /** Opt-out : NUXT_PUBLIC_ENGAGEMENTS_ENABLED=false */
       engagementsEnabled:
         (process.env.NUXT_PUBLIC_ENGAGEMENTS_ENABLED ?? 'true') !== 'false',
-
-      /** Uniquement si explicitement true — sinon toujours Supabase */
       useMockDb: process.env.NUXT_PUBLIC_USE_MOCK_DB === 'true',
       contactEmail: process.env.NUXT_PUBLIC_CONTACT_EMAIL || 'contact@manif.info',
       legalEditorName: process.env.NUXT_PUBLIC_LEGAL_EDITOR_NAME || '',
@@ -147,7 +119,6 @@ export default defineNuxtConfig({
   nitro: {
     experimental: {
       openAPI: false,
-      tasks: true,
     },
     /** Cron déclaré dans vercel.json → GET /api/cron/imports */
     vercel: {

@@ -20,7 +20,7 @@ Navigateur  →  Nuxt pages (Vue 3)  →  Nitro API  →  PostgreSQL (Supabase)
 | OG | SVG dynamique `/api/og/event/:slug` | Partage réseaux |
 | Carte | MapLibre + style OpenFreeMap configurable | Compatible, sans clé obligatoire |
 | Géocodage | API Adresse (BAN) | France, gratuit, licence adaptée |
-| Engagements | Feature flag `PARTICIPATION_ENABLED` | Soutien + participation ; blocage juridique possible |
+| Engagements | Feature flag `NUXT_PUBLIC_ENGAGEMENTS_ENABLED` | Soutien + participation ; blocage juridique possible |
 | E-mail | Resend ou mock console | Pas de faux succès silencieux |
 
 ## Couches

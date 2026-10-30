@@ -1,7 +1,7 @@
 # Revue de confidentialité — Manif'
 
 **Statut produit (MVP) :** collecte d’engagements (soutiens + participations déclarées) **activée**
-par décision de l’éditeur (`NUXT_PUBLIC_PARTICIPATION_ENABLED=true`), avec consentement informatif
+par décision de l’éditeur (`NUXT_PUBLIC_ENGAGEMENTS_ENABLED=true`), avec consentement informatif
 avant déclaration.
 
 **Ce document ne constitue pas une certification de conformité RGPD.**
@@ -15,7 +15,7 @@ Une validation par juriste / DPO reste recommandée avant une audience large.
 | Compte participant | Aucun |
 | Suivi transversal | Aucun (jeton scoped événement) |
 | IP dans engagements | Non |
-| Activation | Flag env `PARTICIPATION_ENABLED` |
+| Activation | Flag env `NUXT_PUBLIC_ENGAGEMENTS_ENABLED` |
 | Éditeur | Manif' — contact@manif.info |
 
 ## Traitements

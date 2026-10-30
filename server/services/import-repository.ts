@@ -299,16 +299,11 @@ export async function insertCandidates(
   return Math.max(0, after - before)
 }
 
+/** Candidats « nouveaux » (créations applied, hors maj d’existants). */
 export async function listCandidates(
   runId: string,
   opts: {
-    status?: ImportCandidateStatus
-    /** Plusieurs statuts (ex. doublons = duplicate + skipped) */
-    statuses?: ImportCandidateStatus[]
-    /** Uniquement les créations (pas les maj auto d’existants) */
     onlyNew?: boolean
-    /** Uniquement les mises à jour d’événements déjà connus */
-    onlyUpdated?: boolean
     limit?: number
     offset?: number
   } = {},
@@ -318,21 +313,11 @@ export async function listCandidates(
 
   if (useMockDb()) {
     let items = ensureMockImports().importCandidates.filter(c => c.runId === runId)
-    if (opts.status) items = items.filter(c => c.status === opts.status)
-    if (opts.statuses?.length) {
-      items = items.filter(c => opts.statuses!.includes(c.status))
-    }
     if (opts.onlyNew) {
       items = items.filter(c =>
         c.status === 'applied'
         && !c.matchEventId
         && c.payload?.applyKind !== 'updated',
-      )
-    }
-    if (opts.onlyUpdated) {
-      items = items.filter(c =>
-        c.status === 'applied'
-        && (Boolean(c.matchEventId) || c.payload?.applyKind === 'updated'),
       )
     }
     const total = items.length
@@ -345,14 +330,9 @@ export async function listCandidates(
     .eq('run_id', runId)
     .order('start_at', { ascending: true, nullsFirst: false })
     .range(offset, offset + limit - 1)
-  if (opts.status) q = q.eq('status', opts.status)
-  if (opts.statuses?.length) q = q.in('status', opts.statuses)
   if (opts.onlyNew) {
     // Créations : applied sans match (les maj portent match_event_id)
     q = q.eq('status', 'applied').is('match_event_id', null)
-  }
-  if (opts.onlyUpdated) {
-    q = q.eq('status', 'applied').not('match_event_id', 'is', null)
   }
   const { data, error, count } = await q
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })

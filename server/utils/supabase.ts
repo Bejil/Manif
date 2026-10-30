@@ -115,8 +115,3 @@ export function createAuthSupabase(): SupabaseClient {
     },
   })
 }
-
-/** @deprecated Préférer createAuthSupabase() pour le login ; getServiceSupabase() pour la DB. */
-export function getAuthSupabase(): SupabaseClient {
-  return createAuthSupabase()
-}
