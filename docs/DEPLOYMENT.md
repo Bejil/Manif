@@ -63,7 +63,9 @@ Nuxt 4 / Nitro est détecté automatiquement : **pas de `vercel.json` requis**. 
 
 ### Cron quotidien (import puis alertes)
 
-Déclaré dans `vercel.json` : **GET `/api/cron/imports`** tous les jours à **07:00 UTC** (`0 7 * * *`).
+Déclaré dans `vercel.json` : **GET `/api/cron/imports`** tous les jours à **06:00 UTC** (`0 6 * * *`)  
+→ **07:00 heure de Paris** en hiver (CET), **08:00** en été (CEST).  
+(Vercel ne gère que l’UTC.)
 
 Enchaînement :
 1. Import multi-sources (éventuellement via `/api/cron/imports-continue` si budget temps)
@@ -72,10 +74,11 @@ Enchaînement :
 1. Settings → Environment Variables → `CRON_SECRET` (chaîne ≥ 16 car., Production)
 2. Commit + push de `vercel.json` (ou Redeploy après merge)
 3. Settings → Cron Jobs :  
-   ` /api/cron/imports ` · `0 7 * * *`
+   ` /api/cron/imports ` · `0 6 * * *`
 
-Optionnel import : `IMPORT_CRON_MODE`, `IMPORT_CRON_SOURCES`, `IMPORT_CRON_ENABLED=false`  
-(si l’import est coupé, les alertes partent quand même à 07:00 UTC).  
+Optionnel import : `IMPORT_CRON_MODE` (`draft` | `published`, défaut **published**), `IMPORT_CRON_SOURCES`, `IMPORT_CRON_ENABLED=false`  
+(si l’import est coupé, les alertes partent quand même au même horaire).  
+Avec `IMPORT_CRON_MODE=published`, les créations sont déjà publiques : la liste admin « Candidats » (brouillons à publier) reste vide.  
 Optionnel alertes : `ALERTS_CRON_ENABLED=false`.  
 Suivi import : `/admin/imports`.  
 `GET /api/cron/alerts` reste utilisable manuellement (Bearer `CRON_SECRET`).

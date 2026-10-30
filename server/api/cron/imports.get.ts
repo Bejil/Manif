@@ -7,7 +7,7 @@ import {
 import { runAlertsCronStep } from '../../utils/alerts-cron'
 
 /**
- * Point d’entrée Vercel Cron (GET /api/cron/imports) — 07:00 UTC.
+ * Point d’entrée Vercel Cron (GET /api/cron/imports) — 06:00 UTC (≈ 07h Paris en hiver).
  * Enchaîne l’import puis, une fois terminé, les digests d’alertes e-mail.
  * Auth : Authorization Bearer CRON_SECRET.
  */

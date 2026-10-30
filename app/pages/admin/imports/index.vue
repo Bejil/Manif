@@ -726,15 +726,15 @@ watch(
 
         <fieldset class="mt-5">
           <legend class="text-xs font-bold uppercase tracking-wide text-[#636363]">Statut</legend>
-          <div class="mt-3 space-y-2">
+          <div class="mt-3 grid grid-cols-2 gap-2">
             <label
               v-for="m in IMPORT_MODES"
               :key="m.id"
-              class="flex cursor-pointer gap-3 rounded-[4px] border border-[#DDDAD3] p-3 hover:bg-[#FFFCF4]"
+              class="flex cursor-pointer items-center gap-3 rounded-[4px] border border-[#DDDAD3] p-3 hover:bg-[#FFFCF4]"
               :class="mode === m.id ? 'border-[#9C6EE8] bg-[#F7F2FC]' : ''"
             >
-              <input v-model="mode" type="radio" :value="m.id" class="mt-1">
-              <span class="block text-sm font-bold">{{ m.label }}</span>
+              <input v-model="mode" type="radio" :value="m.id" class="shrink-0">
+              <span class="text-sm font-bold">{{ m.label }}</span>
             </label>
           </div>
         </fieldset>
@@ -827,6 +827,16 @@ watch(
               </div>
             </dl>
 
+            <UiAlert
+              v-if="activeRun.mode === 'published'"
+              class="mt-3"
+              color="info"
+              variant="subtle"
+              title="Publication auto"
+            >
+              Les nouveaux événements de cet import ont été publiés directement (pas de file de brouillons).
+            </UiAlert>
+
             <div class="mt-4 flex flex-wrap gap-2">
               <UiButton
                 v-if="canCancelRun"
@@ -847,7 +857,7 @@ watch(
                 Reprendre / finir l’écriture
               </UiButton>
               <UiButton
-                v-if="showCandidates && (activeRun.stats?.created || 0) > 0"
+                v-if="showCandidates && (detailData?.candidates?.total || 0) > 0"
                 size="sm"
                 variant="outline"
                 :disabled="busy || cancelling"
@@ -907,7 +917,14 @@ watch(
               v-else-if="!detailData?.candidates?.items?.length"
               class="mt-4 rounded-[4px] border border-dashed border-[#DDDAD3] bg-[#FFFCF4] px-4 py-8 text-center text-sm text-[#636363]"
             >
-              Aucun nouveau candidat pour cet import.
+              <template v-if="(activeRun.stats?.created || 0) > 0">
+                Aucun brouillon à publier.
+                Les {{ activeRun.stats.created }} candidat{{ activeRun.stats.created > 1 ? 's' : '' }}
+                de cet import {{ activeRun.mode === 'published' ? 'sont déjà publiés' : 'ne sont plus en brouillon' }}.
+              </template>
+              <template v-else>
+                Aucun nouveau candidat pour cet import.
+              </template>
             </p>
             <div
               v-if="detailData?.candidates?.items?.length"

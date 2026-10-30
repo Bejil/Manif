@@ -68,15 +68,18 @@ const {
   syncFromStorage: syncAlertsSection,
   hideSection: hideAlertsSection,
   showSection: showAlertsSection,
-  showBanner: showAlertBanner,
+  showToast: showAlertToast,
 } = useHomeAlertSection()
 
 function onAlertSignupSuccess(payload: { needsConfirmation: boolean }) {
   // En attente de confirmation : le bloc reste visible (message dans le formulaire).
-  // Déjà active (mise à jour) : masquer + bandeau.
+  // Déjà active (mise à jour) : masquer + toast.
   if (!payload.needsConfirmation) {
     hideAlertsSection()
-    showAlertBanner('Alerte mise à jour. Vous serez prévenu·e des nouvelles manifestations dans votre zone.')
+    showAlertToast({
+      title: 'Alerte mise à jour',
+      description: 'Vous serez prévenu·e des nouvelles manifestations dans votre zone.',
+    })
   }
 }
 
@@ -85,14 +88,24 @@ onMounted(() => {
   const v = route.query.alertes
   if (v === 'confirmed') {
     hideAlertsSection()
-    showAlertBanner('Alerte activée. Vous serez prévenu·e des nouvelles manifestations dans votre zone.')
+    showAlertToast({
+      title: 'Alerte activée',
+      description: 'Votre adresse est confirmée. Vous recevrez un e-mail dès qu’une nouvelle manifestation sera publiée dans votre zone.',
+    })
   }
   else if (v === 'unsubscribed') {
     showAlertsSection()
-    showAlertBanner('Vous êtes désinscrit·e des alertes e-mail.')
+    showAlertToast({
+      title: 'Désinscription confirmée',
+      description: 'Vous ne recevrez plus d’alertes e-mail de Manif\'.',
+    })
   }
   else if (v === 'invalid') {
-    showAlertBanner('Lien d’alerte invalide ou expiré.', 'err')
+    showAlertToast({
+      title: 'Lien invalide',
+      description: 'Ce lien d’alerte est invalide ou a expiré.',
+      tone: 'err',
+    })
   }
 
   if (v) {
