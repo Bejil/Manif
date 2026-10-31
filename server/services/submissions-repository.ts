@@ -20,7 +20,8 @@ import { geocodeCityCenter, geocodeFrenchPlace, requireGeocodedPlace } from './g
 import { getMockStore, newId, nowIso, seedMockStore } from './mock-store'
 import { buildDemoEvents } from './seed-data'
 import { listEntityHistory, type AdminHistoryEntry } from './admin-audit'
-import { upsertEvent } from './events-repository'
+import { getEventById, toPublic, upsertEvent } from './events-repository'
+import { getEventCounts } from './engagements-repository'
 
 function ensureSeeded() {
   if (useMockDb()) seedMockStore(buildDemoEvents())
@@ -998,4 +999,97 @@ export async function reopenSubmissionForModeration(id: string, actorId: string)
     })
   }
   return { ok: true }
+}
+
+export type MySubmissionPublic = {
+  id: string
+  title: string
+  cityName: string
+  category: EventSubmissionRecord['category']
+  startAt: string | null
+  moderationStatus: EventSubmissionRecord['moderationStatus']
+  verificationStatus: EventSubmissionRecord['verificationStatus']
+  rejectionReason: string | null
+  createdAt: string
+  updatedAt: string
+  publishedEventId: string | null
+  event: {
+    id: string
+    slug: string
+    title: string
+    cityName: string
+    category: string
+    startAt: string | null
+    displayStatus: string
+    publicationStatus: string
+    counts: { views: number, supports: number, participations: number }
+  } | null
+}
+
+/** Résumé public des propositions dont les ids sont connus côté appareil. */
+export async function listMySubmissionsPublic(ids: string[]): Promise<MySubmissionPublic[]> {
+  const unique = [...new Set(
+    ids
+      .map(id => id.trim().toLowerCase())
+      .filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)),
+  )].slice(0, 50)
+  if (!unique.length) return []
+
+  ensureSeeded()
+  let rows: EventSubmissionRecord[] = []
+  if (useMockDb()) {
+    const store = getMockStore()
+    rows = unique
+      .map(id => store.submissions.find(s => s.id === id))
+      .filter((s): s is EventSubmissionRecord => Boolean(s))
+  }
+  else {
+    const supabase = getServiceSupabase()
+    const { data, error } = await supabase
+      .from('event_submissions')
+      .select('*')
+      .in('id', unique)
+    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+    rows = (data ?? []).map(rowToSubmission)
+  }
+
+  const out: MySubmissionPublic[] = []
+  for (const s of rows) {
+    let event: MySubmissionPublic['event'] = null
+    if (s.publishedEventId) {
+      const record = await getEventById(s.publishedEventId)
+      if (record && record.publicationStatus === 'published') {
+        const pub = toPublic(record, await getEventCounts(record.id))
+        event = {
+          id: pub.id,
+          slug: pub.slug,
+          title: pub.title,
+          cityName: pub.cityName,
+          category: pub.category,
+          startAt: pub.startAt,
+          displayStatus: pub.displayStatus,
+          publicationStatus: pub.publicationStatus,
+          counts: pub.counts,
+        }
+      }
+    }
+    out.push({
+      id: s.id,
+      title: s.title,
+      cityName: s.cityName,
+      category: s.category,
+      startAt: s.startAt,
+      moderationStatus: s.moderationStatus,
+      verificationStatus: s.verificationStatus,
+      rejectionReason: s.rejectionReason,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+      publishedEventId: s.publishedEventId,
+      event,
+    })
+  }
+
+  const order = new Map(unique.map((id, i) => [id, i]))
+  out.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+  return out
 }

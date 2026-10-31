@@ -18,10 +18,17 @@ async function verify() {
   }
   status.value = 'loading'
   try {
-    const res = await $fetch<{ alreadyVerified: boolean }>('/api/submissions/verify', {
+    const res = await $fetch<{ alreadyVerified: boolean, id?: string }>('/api/submissions/verify', {
       method: 'POST',
       body: { token: token.value },
     })
+    if (res.id) {
+      rememberMyProposal({
+        submissionId: res.id,
+        title: 'Ma proposition',
+        cityName: '',
+      })
+    }
     status.value = res.alreadyVerified ? 'already' : 'ok'
   }
   catch (e: unknown) {
@@ -48,11 +55,16 @@ onMounted(() => {
         <p class="font-bold text-[#206C4D]">Adresse e-mail confirmée.</p>
         <p class="text-sm text-[#454545]">
           Merci. Votre proposition est en file de modération et n’est pas encore publiée.
+          Suivez-la dans
+          <NuxtLink to="/mes-manifestations" class="font-semibold text-[#6735B6] underline">Mes manifestations</NuxtLink>.
         </p>
       </div>
       <div v-else-if="status === 'already'" class="mt-4 space-y-2">
         <p class="font-bold text-[#111111]">Déjà confirmée</p>
-        <p class="text-sm text-[#454545]">Cette proposition est déjà en attente d’examen.</p>
+        <p class="text-sm text-[#454545]">
+          Cette proposition est déjà en attente d’examen —
+          <NuxtLink to="/mes-manifestations" class="font-semibold text-[#6735B6] underline">Mes manifestations</NuxtLink>.
+        </p>
       </div>
       <div v-else-if="status === 'error'" class="mt-4 space-y-3">
         <p class="text-[#AD291F]">{{ message }}</p>

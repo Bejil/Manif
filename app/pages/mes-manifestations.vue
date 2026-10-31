@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { DateTime } from 'luxon'
 import type { EventPublic } from '#shared/types/event'
+import type { SubmissionModerationStatus } from '#shared/types/submission'
 import { SEO } from '#shared/content/seo'
 
 useSeoMeta({
@@ -11,8 +12,29 @@ useSeoMeta({
   robots: 'noindex',
 })
 
-type EngagementFilter = 'all' | 'supported' | 'participating'
+type EngagementFilter = 'all' | 'supported' | 'participating' | 'proposed'
 type ViewMode = 'list' | 'calendar'
+
+type MyProposalRow = {
+  id: string
+  title: string
+  cityName: string
+  category: string
+  startAt: string | null
+  moderationStatus: SubmissionModerationStatus
+  verificationStatus: string
+  rejectionReason: string | null
+  event: {
+    id: string
+    slug: string
+    title: string
+    cityName: string
+    category: string
+    startAt: string | null
+    displayStatus: string
+    counts: { views: number, supports: number, participations: number }
+  } | null
+}
 
 const {
   entries,
@@ -21,6 +43,13 @@ const {
   engagedIds,
   refresh,
 } = useMyEngagements()
+
+const {
+  proposals,
+  proposalIds,
+  hasProposals,
+  refresh: refreshProposals,
+} = useMyProposals()
 
 /** Brouillon UI — appliqué seulement via « Rechercher ». */
 const draftQ = ref('')
@@ -36,14 +65,27 @@ const selectedId = ref<string | null>(null)
 const previewId = ref<string | null>(null)
 const calendarMonth = ref(DateTime.now().setZone('Europe/Paris').toFormat('yyyy-MM'))
 
+const hasLocalData = computed(() => engagedIds.value.length > 0 || hasProposals.value)
+
 const filteredLocalIds = computed(() => {
   if (engagementFilter.value === 'supported') return supportedIds.value
   if (engagementFilter.value === 'participating') return participatingIds.value
+  if (engagementFilter.value === 'proposed') return []
   return engagedIds.value
 })
 
+const showEngagements = computed(() =>
+  engagementFilter.value === 'all'
+  || engagementFilter.value === 'supported'
+  || engagementFilter.value === 'participating',
+)
+
+const showProposals = computed(() =>
+  engagementFilter.value === 'all' || engagementFilter.value === 'proposed',
+)
+
 const listParams = computed(() => {
-  if (!filteredLocalIds.value.length) return null
+  if (!showEngagements.value || !filteredLocalIds.value.length) return null
   return {
     q: appliedQ.value || undefined,
     category: appliedCategory.value || undefined,
@@ -86,8 +128,40 @@ const { data, pending, error, refresh: refreshList } = await useFetch<{
   }),
 })
 
+const proposalsData = ref<{ items: MyProposalRow[] }>({ items: [] })
+const proposalsPending = ref(false)
+const proposalsError = ref(false)
+
+async function refreshProposalsApi() {
+  if (!showProposals.value || !proposalIds.value.length) {
+    proposalsData.value = { items: [] }
+    proposalsError.value = false
+    return
+  }
+  proposalsPending.value = true
+  proposalsError.value = false
+  try {
+    proposalsData.value = await $fetch<{ items: MyProposalRow[] }>('/api/submissions/mine', {
+      method: 'POST',
+      body: { ids: proposalIds.value },
+    })
+  }
+  catch {
+    proposalsError.value = true
+  }
+  finally {
+    proposalsPending.value = false
+  }
+}
+
+watch([proposalIds, showProposals], () => {
+  void refreshProposalsApi()
+})
+
 onMounted(() => {
   refresh()
+  refreshProposals()
+  void refreshProposalsApi()
 })
 
 const sortedItems = computed(() => {
@@ -102,6 +176,23 @@ const sortedItems = computed(() => {
   }))
 })
 
+const proposalRows = computed(() => {
+  let rows = [...(proposalsData.value?.items ?? [])]
+  const q = appliedQ.value.trim().toLowerCase()
+  if (q) {
+    rows = rows.filter(r =>
+      r.title.toLowerCase().includes(q)
+      || r.cityName.toLowerCase().includes(q)
+      || (r.event?.title.toLowerCase().includes(q) ?? false)
+      || (r.event?.cityName.toLowerCase().includes(q) ?? false),
+    )
+  }
+  if (appliedCategory.value) {
+    rows = rows.filter(r => r.category === appliedCategory.value || r.event?.category === appliedCategory.value)
+  }
+  return rows
+})
+
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(sortedItems.value.length / pageSize)),
 )
@@ -112,13 +203,17 @@ const pageItems = computed(() => {
 })
 
 const headingLabel = computed(() => {
-  if (!engagedIds.value.length) return 'Mes manifestations'
+  if (!hasLocalData.value) return 'Mes manifestations'
+  if (engagementFilter.value === 'proposed') {
+    const n = proposalRows.value.length
+    return `${n} Proposition${n > 1 ? 's' : ''}`
+  }
   const n = sortedItems.value.length
   return `${n} Manifestation${n > 1 ? 's' : ''}`
 })
 
-const agendaEvents = computed(() =>
-  sortedItems.value.map(({ event: e }) => ({
+const agendaEvents = computed(() => {
+  const fromEngagements = sortedItems.value.map(({ event: e }) => ({
     id: e.id,
     slug: e.slug,
     title: e.title,
@@ -126,26 +221,48 @@ const agendaEvents = computed(() =>
     startAt: e.startAt,
     displayStatus: e.displayStatus,
     timezone: e.timezone,
-  })),
-)
+  }))
+  if (!showProposals.value) return fromEngagements
+  const engaged = new Set(fromEngagements.map(e => e.id))
+  const fromProposals = proposalRows.value
+    .filter(p => p.event && !engaged.has(p.event.id))
+    .map(p => ({
+      id: p.event!.id,
+      slug: p.event!.slug,
+      title: p.event!.title,
+      cityName: p.event!.cityName,
+      startAt: p.event!.startAt,
+      displayStatus: p.event!.displayStatus as EventPublic['displayStatus'],
+      timezone: 'Europe/Paris',
+    }))
+  return [...fromEngagements, ...fromProposals]
+})
 
 const viewOptions: Array<{ id: ViewMode, label: string }> = [
   { id: 'list', label: 'Liste' },
   { id: 'calendar', label: 'Agenda' },
 ]
 
-const engagementOptions: Array<{ id: EngagementFilter, label: string }> = [
-  { id: 'all', label: 'Tous' },
-  { id: 'supported', label: 'Je soutiens' },
-  { id: 'participating', label: 'Je participe' },
-]
+const engagementOptions = computed(() => {
+  const opts: Array<{ id: EngagementFilter, label: string }> = [
+    { id: 'all', label: 'Tous' },
+    { id: 'supported', label: 'Je soutiens' },
+    { id: 'participating', label: 'Je participe' },
+  ]
+  if (hasProposals.value || engagementFilter.value === 'proposed') {
+    opts.push({ id: 'proposed', label: 'Je propose' })
+  }
+  return opts
+})
 
 watch(totalPages, (max) => {
   if (page.value > max) page.value = max
 })
 
 function eventById(id: string) {
-  return sortedItems.value.find(row => row.event.id === id)?.event ?? null
+  return sortedItems.value.find(row => row.event.id === id)?.event
+    ?? proposalRows.value.find(p => p.event?.id === id)?.event
+    ?? null
 }
 
 function onSelect(id: string) {
@@ -155,11 +272,17 @@ function onSelect(id: string) {
     return
   }
   const event = eventById(id)
-  if (event) void navigateTo(`/manifestations/${event.slug}`)
+  if (event && 'slug' in event) void navigateTo(`/manifestations/${event.slug}`)
 }
 
 function closePreview() {
   previewId.value = null
+}
+
+async function refreshAll() {
+  refresh()
+  refreshProposals()
+  await Promise.all([refreshList(), refreshProposalsApi()])
 }
 </script>
 
@@ -171,19 +294,24 @@ function closePreview() {
         {{ headingLabel }}
       </h1>
       <p class="mt-3 max-w-xl text-sm text-[#454545] sm:text-base">
-        Soutiens et participations enregistrés sur cet appareil.
+        Soutiens, participations et propositions enregistrés sur cet appareil.
         Filtrez, triez, ou ouvrez votre agenda mensuel.
       </p>
     </div>
 
     <EmptyState
-      v-if="!engagedIds.length"
-      title="Aucun engagement pour l’instant"
-      description="Soutenez ou déclarez votre participation depuis une fiche ou la carte — vos choix restent sur cet appareil."
+      v-if="!hasLocalData"
+      title="Rien pour l’instant sur cet appareil"
+      description="Soutenez, participez, ou proposez une manifestation — vos choix restent ici, sans compte."
     >
-      <NuxtLink to="/manifestations">
-        <UiButton size="sm">Explorer les manifestations</UiButton>
-      </NuxtLink>
+      <div class="flex flex-wrap gap-2">
+        <NuxtLink to="/manifestations">
+          <UiButton size="sm">Explorer</UiButton>
+        </NuxtLink>
+        <NuxtLink to="/proposer">
+          <UiButton size="sm" variant="outline">Proposer</UiButton>
+        </NuxtLink>
+      </div>
     </EmptyState>
 
     <template v-else>
@@ -209,6 +337,10 @@ function closePreview() {
             @click="engagementFilter = opt.id"
           >
             {{ opt.label }}
+            <span
+              v-if="opt.id === 'proposed' && proposals.length"
+              class="ml-1 tabular-nums opacity-70"
+            >({{ proposals.length }})</span>
           </button>
         </fieldset>
 
@@ -228,7 +360,10 @@ function closePreview() {
               </option>
             </select>
           </label>
-          <label class="flex items-center gap-2 text-sm">
+          <label
+            v-if="showEngagements"
+            class="flex items-center gap-2 text-sm"
+          >
             <span class="font-bold text-[#636363]">Trier</span>
             <select
               v-model="sort"
@@ -242,63 +377,114 @@ function closePreview() {
       </div>
 
       <!-- Liste -->
-      <div v-if="viewMode === 'list'" class="mt-6 space-y-2">
-        <p v-if="pending" class="text-sm text-[#454545]">Chargement…</p>
-        <p v-else-if="error" class="text-sm text-[#AD291F]">
-          Impossible de charger vos manifestations.
-          <button type="button" class="underline" @click="refreshList()">Réessayer</button>
-        </p>
-        <EmptyState
-          v-else-if="!pageItems.length"
-          title="Aucun résultat pour ces filtres"
-          description="Élargissez la recherche ou changez le type d’engagement."
-        />
-        <EventCard
-          v-for="row in pageItems"
-          :key="row.event.id"
-          :event="row.event"
-          :selected="selectedId === row.event.id"
-          @select="onSelect(row.event.id)"
-        />
-
-        <nav
-          v-if="sortedItems.length > pageSize"
-          class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#DDDAD3] pt-4"
-          aria-label="Pagination"
-        >
-          <UiButton
-            size="sm"
-            variant="outline"
-            :disabled="page <= 1"
-            @click="page--"
-          >
-            Précédent
-          </UiButton>
-          <p class="text-sm font-semibold text-[#454545]">
-            Page {{ page }} sur {{ totalPages }}
+      <div v-if="viewMode === 'list'" class="mt-6 space-y-6">
+        <section v-if="showProposals && (hasProposals || engagementFilter === 'proposed')">
+          <div class="mb-3 flex items-baseline justify-between gap-3">
+            <h2 class="text-xs font-bold uppercase tracking-[0.16em] text-[#9C6EE8]">
+              Mes propositions
+            </h2>
+            <button
+              type="button"
+              class="text-xs font-semibold text-[#6735B6] underline-offset-2 hover:underline"
+              @click="refreshProposalsApi()"
+            >
+              Actualiser
+            </button>
+          </div>
+          <p v-if="proposalsPending" class="text-sm text-[#454545]">Chargement des propositions…</p>
+          <p v-else-if="proposalsError" class="text-sm text-[#AD291F]">
+            Impossible de charger vos propositions.
+            <button type="button" class="underline" @click="refreshProposalsApi()">Réessayer</button>
           </p>
-          <UiButton
-            size="sm"
-            variant="outline"
-            :disabled="page >= totalPages"
-            @click="page++"
+          <EmptyState
+            v-else-if="!proposalRows.length"
+            title="Aucune proposition ici"
+            description="Proposez un événement pour le retrouver sur cet appareil, avec son statut et ses stats une fois publié."
           >
-            Suivant
-          </UiButton>
-        </nav>
+            <NuxtLink to="/proposer">
+              <UiButton size="sm">Proposer une manifestation</UiButton>
+            </NuxtLink>
+          </EmptyState>
+          <div v-else class="space-y-2">
+            <MyProposalCard
+              v-for="row in proposalRows"
+              :key="row.id"
+              :proposal="row"
+            />
+          </div>
+        </section>
+
+        <section v-if="showEngagements">
+          <h2
+            v-if="showProposals && hasProposals"
+            class="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]"
+          >
+            Soutiens & participations
+          </h2>
+          <p v-if="pending" class="text-sm text-[#454545]">Chargement…</p>
+          <p v-else-if="error" class="text-sm text-[#AD291F]">
+            Impossible de charger vos manifestations.
+            <button type="button" class="underline" @click="refreshAll()">Réessayer</button>
+          </p>
+          <EmptyState
+            v-else-if="!pageItems.length && engagementFilter !== 'all'"
+            title="Aucun résultat pour ces filtres"
+            description="Élargissez la recherche ou changez le type d’engagement."
+          />
+          <EmptyState
+            v-else-if="!pageItems.length && !hasProposals"
+            title="Aucun engagement"
+            description="Soutenez ou déclarez votre participation depuis une fiche."
+          />
+          <div v-else-if="pageItems.length" class="space-y-2">
+            <EventCard
+              v-for="row in pageItems"
+              :key="row.event.id"
+              :event="row.event"
+              :selected="selectedId === row.event.id"
+              @select="onSelect(row.event.id)"
+            />
+
+            <nav
+              v-if="sortedItems.length > pageSize"
+              class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#DDDAD3] pt-4"
+              aria-label="Pagination"
+            >
+              <UiButton
+                size="sm"
+                variant="outline"
+                :disabled="page <= 1"
+                @click="page--"
+              >
+                Précédent
+              </UiButton>
+              <p class="text-sm font-semibold text-[#454545]">
+                Page {{ page }} sur {{ totalPages }}
+              </p>
+              <UiButton
+                size="sm"
+                variant="outline"
+                :disabled="page >= totalPages"
+                @click="page++"
+              >
+                Suivant
+              </UiButton>
+            </nav>
+          </div>
+        </section>
       </div>
 
       <!-- Agenda mensuel -->
       <div v-else class="relative mt-6">
-        <p v-if="pending" class="mb-3 text-sm text-[#454545]">Chargement de l’agenda…</p>
+        <p v-if="pending || proposalsPending" class="mb-3 text-sm text-[#454545]">Chargement de l’agenda…</p>
         <p v-else-if="error" class="mb-3 text-sm text-[#AD291F]">
           Impossible de charger l’agenda.
-          <button type="button" class="underline" @click="refreshList()">Réessayer</button>
+          <button type="button" class="underline" @click="refreshAll()">Réessayer</button>
         </p>
         <EventsAgendaGrid
           v-model:month="calendarMonth"
           :events="agendaEvents"
-          :pending="pending"
+          :pending="pending || proposalsPending"
           :selected-id="selectedId"
           @select="onSelect"
         />

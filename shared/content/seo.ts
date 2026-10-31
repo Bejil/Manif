@@ -14,9 +14,9 @@ export const SEO = {
       "Recherchez et filtrez les manifestations en France : liste synchronisée avec la carte, informations pratiques, soutien et participation sans compte.",
   },
   mesManifestations: {
-    title: "Mes manifestations — Soutiens et participations | Manif'",
+    title: "Mes manifestations — Soutiens, participations et propositions | Manif'",
     description:
-      "Retrouvez sur cet appareil les manifestations que vous soutenez ou auxquelles vous participez. Filtrez et triez sans compte.",
+      "Retrouvez sur cet appareil les manifestations que vous proposez, soutenez ou auxquelles vous participez, avec des stats condensées — sans compte.",
   },
   proposer: {
     title: "Proposer une manifestation — Manif'",

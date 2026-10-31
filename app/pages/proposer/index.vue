@@ -192,6 +192,12 @@ async function onSubmit() {
         body: { ...form, turnstileToken: turnstileToken.value || undefined },
       })
       similar.value = res.similarEvents || similar.value
+      rememberMyProposal({
+        submissionId: res.id,
+        title: form.title,
+        cityName: form.cityName,
+        category: form.category,
+      })
       done.value = true
       if (res.devLink) devLink.value = res.devLink
     }
@@ -248,6 +254,11 @@ async function onSubmit() {
           <li>Un message de confirmation vient de partir.</li>
           <li>Le lien est valable 24 heures.</li>
           <li>Après confirmation, votre proposition rejoindra la file de modération.</li>
+          <li>
+            Retrouvez-la ensuite dans
+            <NuxtLink to="/mes-manifestations" class="font-semibold text-[#6735B6] underline">Mes manifestations</NuxtLink>
+            (filtre « Je propose »), sur cet appareil.
+          </li>
         </ul>
         <p v-if="devLink" class="mt-4 break-all rounded-[4px] bg-white p-3 text-xs text-[#454545]">
           [DEV] Lien de vérification :
