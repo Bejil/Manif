@@ -21,22 +21,25 @@ const topCities = computed(() => citiesData.value?.items ?? [])
 
 type ViewMode = 'list' | 'calendar' | 'map'
 
-const q = ref('')
-const category = ref('')
-const statuses = ref<string[]>(['upcoming', 'ongoing'])
+/** Brouillon UI — appliqué seulement via « Rechercher ». */
+const draftQ = ref('')
+const draftCategory = ref('')
+const appliedQ = ref('')
+const appliedCategory = ref('')
+const sort = ref<'date' | 'category'>('date')
 const selectedId = ref<string | null>(null)
 const previewId = ref<string | null>(null)
 const viewMode = ref<ViewMode>('list')
 const { supportedIds, participatingIds, engagedIds } = useMyEngagements()
 const page = ref(1)
 const pageSize = 20
-const debouncedQ = refDebounced(q, 300)
 const calendarMonth = ref(DateTime.now().setZone('Europe/Paris').toFormat('yyyy-MM'))
 
 const filterParams = computed(() => ({
-  q: debouncedQ.value || undefined,
-  category: category.value || undefined,
-  statuses: statuses.value.join(',') || undefined,
+  q: appliedQ.value || undefined,
+  category: appliedCategory.value || undefined,
+  statuses: 'upcoming,ongoing',
+  sort: sort.value,
 }))
 
 const listParams = computed(() => ({
@@ -61,7 +64,14 @@ const calendarParams = computed(() => ({
   pageSize: 200,
 }))
 
-watch(filterParams, () => {
+function applySearch() {
+  appliedQ.value = draftQ.value.trim()
+  appliedCategory.value = draftCategory.value
+  page.value = 1
+  selectedId.value = null
+}
+
+watch(() => sort.value, () => {
   page.value = 1
   selectedId.value = null
 })
@@ -132,6 +142,12 @@ const totalPages = computed(() => {
 const resultCount = computed(() => {
   if (viewMode.value === 'calendar') return calendarData.value?.total ?? null
   return data.value?.total ?? null
+})
+
+const headingLabel = computed(() => {
+  if (resultCount.value == null) return 'Manifestations'
+  const n = resultCount.value
+  return `${n} Manifestation${n > 1 ? 's' : ''}`
 })
 
 const agendaEvents = computed(() =>
@@ -239,16 +255,6 @@ watch(
   },
 )
 
-function refDebounced<T>(source: Ref<T>, ms: number) {
-  const debounced = ref(source.value) as Ref<T>
-  let t: ReturnType<typeof setTimeout> | undefined
-  watch(source, (v) => {
-    clearTimeout(t)
-    t = setTimeout(() => { debounced.value = v }, ms)
-  })
-  return debounced
-}
-
 const viewOptions: Array<{ id: ViewMode, label: string }> = [
   { id: 'list', label: 'Liste' },
   { id: 'calendar', label: 'Agenda' },
@@ -258,58 +264,49 @@ const viewOptions: Array<{ id: ViewMode, label: string }> = [
 
 <template>
   <div class="container-page scroll-mt-24 py-10 md:py-14">
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">Agenda</p>
-        <h1 class="mf-display mf-h2 mt-2 text-[#111111]">
-          Manifestations
-        </h1>
-        <p class="mt-3 max-w-xl text-sm text-[#454545] sm:text-base">
-          Liste, grille mensuelle ou carte. Filtrez, sélectionnez, ouvrez la fiche.
-        </p>
-      </div>
-      <p v-if="resultCount != null" class="chip bg-[#111111] text-[#FFFCF4]">
-        {{ resultCount }} résultat{{ resultCount > 1 ? 's' : '' }}
-        <span v-if="viewMode === 'list' && data && data.total > pageSize" class="opacity-70">
-          · p. {{ page }}/{{ totalPages }}
-        </span>
+    <div class="mb-6">
+      <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">Agenda</p>
+      <h1 class="mf-display mf-h2 mt-2 text-[#111111]">
+        {{ headingLabel }}
+      </h1>
+      <p class="mt-3 max-w-xl text-sm text-[#454545] sm:text-base">
+        Liste, grille mensuelle ou carte. Filtrez, sélectionnez, ouvrez la fiche.
       </p>
     </div>
 
     <EventFilters
-      v-model:q="q"
-      v-model:category="category"
-      v-model:statuses="statuses"
+      v-model:q="draftQ"
+      v-model:category="draftCategory"
+      :popular-cities="topCities"
+      manual-submit
+      @search="applySearch"
     />
 
-    <div
-      v-if="topCities.length"
-      class="mt-4 flex flex-wrap items-center gap-2 text-sm"
-    >
-      <span class="text-xs font-bold uppercase tracking-wide text-[#636363]">Villes</span>
-      <NuxtLink
-        v-for="c in topCities"
-        :key="c.slug"
-        :to="`/manifestations/ville/${c.slug}`"
-        class="rounded-[4px] border border-[#DDDAD3] bg-white px-2.5 py-1 text-xs font-bold text-[#111111] hover:border-[#9C6EE8] hover:text-[#6735B6]"
-      >
-        {{ c.name }}
-      </NuxtLink>
-    </div>
-
-    <div class="mt-4 flex gap-2" role="tablist" aria-label="Mode d’affichage">
-      <button
-        v-for="opt in viewOptions"
-        :key="opt.id"
-        type="button"
-        role="tab"
-        class="flex-1 rounded-[4px] px-3 py-2.5 text-sm font-bold sm:flex-none sm:px-4"
-        :class="viewMode === opt.id ? 'bg-[#111111] text-[#FFFCF4]' : 'border border-[#DDDAD3] bg-white text-[#111111]'"
-        :aria-selected="viewMode === opt.id"
-        @click="viewMode = opt.id"
-      >
-        {{ opt.label }}
-      </button>
+    <div class="mt-4 flex flex-wrap items-center gap-2">
+      <div class="flex min-w-0 flex-1 flex-wrap gap-2" role="tablist" aria-label="Mode d’affichage">
+        <button
+          v-for="opt in viewOptions"
+          :key="opt.id"
+          type="button"
+          role="tab"
+          class="flex-1 rounded-[4px] px-3 py-2.5 text-sm font-bold sm:flex-none sm:px-4"
+          :class="viewMode === opt.id ? 'bg-[#111111] text-[#FFFCF4]' : 'border border-[#DDDAD3] bg-white text-[#111111]'"
+          :aria-selected="viewMode === opt.id"
+          @click="viewMode = opt.id"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
+      <label class="flex shrink-0 items-center gap-2 text-sm">
+        <span class="font-bold text-[#636363]">Trier</span>
+        <select
+          v-model="sort"
+          class="min-h-[42px] rounded-[4px] border border-[#DDDAD3] bg-white px-2.5 py-2 text-sm font-semibold text-[#111111]"
+        >
+          <option value="date">Date</option>
+          <option value="category">Thème</option>
+        </select>
+      </label>
     </div>
 
     <!-- Liste (+ carte desktop) -->

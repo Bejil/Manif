@@ -28,6 +28,9 @@ const statuses = ref<string[]>(
 const publication = ref(
   typeof route.query.publication === 'string' ? route.query.publication : '',
 )
+const sort = ref<'date' | 'category'>(
+  route.query.sort === 'category' ? 'category' : 'date',
+)
 
 const listQuery = computed(() => ({
   page: page.value,
@@ -36,6 +39,7 @@ const listQuery = computed(() => ({
   category: category.value || undefined,
   publication: publication.value || undefined,
   statuses: statuses.value.length ? statuses.value.join(',') : undefined,
+  sort: sort.value,
 }))
 
 const { data, refresh, error, pending } = await useFetch<{
@@ -50,12 +54,12 @@ const { data, refresh, error, pending } = await useFetch<{
   watch: [listQuery],
 })
 
-watch([q, category, statuses, publication], () => {
+watch([q, category, statuses, publication, sort], () => {
   page.value = 1
 })
 
 watch(
-  [publication, q, category, statuses],
+  [publication, q, category, statuses, sort],
   () => {
     if (!import.meta.client) return
     const next: Record<string, string> = {}
@@ -63,6 +67,7 @@ watch(
     if (category.value) next.category = category.value
     if (publication.value) next.publication = publication.value
     if (statuses.value.length) next.statuses = statuses.value.join(',')
+    if (sort.value !== 'date') next.sort = sort.value
     void navigateTo({ path: '/admin/evenements', query: next }, { replace: true })
   },
 )
@@ -86,7 +91,7 @@ function clearSelection() {
   lastSelectAnchorId.value = null
 }
 
-watch([page, q, category, statuses, publication], () => {
+watch([page, q, category, statuses, publication, sort], () => {
   clearSelection()
 })
 
@@ -329,8 +334,11 @@ async function bulkDeleteSelected() {
       v-model:category="category"
       v-model:statuses="statuses"
       v-model:publication="publication"
+      v-model:sort="sort"
       id-prefix="admin-events"
       show-publication
+      show-statuses
+      show-sort
     />
 
     <p

@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
   return listEvents({
     ...parsed.data,
     statuses,
+    sort: parsed.data.sort === 'category' ? 'category' : 'date',
     category: parsed.data.category as undefined,
     ids: parsed.data.ids,
   })

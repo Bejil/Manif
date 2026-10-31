@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
   const statuses = typeof query.statuses === 'string' && query.statuses.trim()
     ? query.statuses.split(',').map(s => s.trim()).filter(Boolean)
     : undefined
+  const sort = query.sort === 'category' ? 'category' as const : 'date' as const
 
   return listEventsAdmin({
     all,
@@ -25,5 +26,6 @@ export default defineEventHandler(async (event) => {
     publication: publication || undefined,
     withoutCoords: withoutCoords || undefined,
     statuses,
+    sort,
   })
 })

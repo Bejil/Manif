@@ -12,7 +12,6 @@ useSeoMeta({
 })
 
 type EngagementFilter = 'all' | 'supported' | 'participating'
-type SortKey = 'date-asc' | 'date-desc' | 'title'
 type ViewMode = 'list' | 'calendar'
 
 const {
@@ -27,7 +26,7 @@ const q = ref('')
 const category = ref('')
 const statuses = ref<string[]>(['upcoming', 'ongoing', 'past', 'cancelled', 'postponed'])
 const engagementFilter = ref<EngagementFilter>('all')
-const sortKey = ref<SortKey>('date-asc')
+const sort = ref<'date' | 'category'>('date')
 const viewMode = ref<ViewMode>('list')
 const page = ref(1)
 const pageSize = 20
@@ -48,13 +47,14 @@ const listParams = computed(() => {
     q: debouncedQ.value || undefined,
     category: category.value || undefined,
     statuses: statuses.value.join(',') || undefined,
+    sort: sort.value,
     ids: filteredLocalIds.value.join(','),
     page: 1,
     pageSize: 200,
   }
 })
 
-watch([engagementFilter, debouncedQ, category, statuses], () => {
+watch([engagementFilter, debouncedQ, category, statuses, sort], () => {
   page.value = 1
 })
 
@@ -87,16 +87,7 @@ const sortedItems = computed(() => {
   const allowed = new Set(filteredLocalIds.value)
   const filtered = items.filter(e => allowed.has(e.id))
 
-  filtered.sort((a, b) => {
-    if (sortKey.value === 'title') {
-      return a.title.localeCompare(b.title, 'fr', { sensitivity: 'base' })
-    }
-    const da = a.startAt || ''
-    const db = b.startAt || ''
-    if (sortKey.value === 'date-desc') return db.localeCompare(da)
-    return da.localeCompare(db) || a.title.localeCompare(b.title, 'fr')
-  })
-
+  // Le tri date/thème est déjà appliqué côté API ; on conserve l’ordre reçu.
   return filtered.map(e => ({
     event: e,
     mine: byId.get(e.id) || null,
@@ -198,6 +189,9 @@ function refDebounced<T>(source: Ref<T>, ms: number) {
         v-model:q="q"
         v-model:category="category"
         v-model:statuses="statuses"
+        v-model:sort="sort"
+        show-statuses
+        show-sort
       />
 
       <div class="mt-4 flex flex-wrap gap-3">
@@ -220,21 +214,6 @@ function refDebounced<T>(source: Ref<T>, ms: number) {
             {{ opt.label }}
           </button>
         </fieldset>
-
-        <label
-          v-if="viewMode === 'list'"
-          class="ml-auto flex items-center gap-2 text-sm"
-        >
-          <span class="font-bold text-[#636363]">Trier</span>
-          <select
-            v-model="sortKey"
-            class="rounded-[4px] border border-[#DDDAD3] bg-white px-2 py-2 text-sm font-semibold text-[#111111]"
-          >
-            <option value="date-asc">Date (croissant)</option>
-            <option value="date-desc">Date (décroissant)</option>
-            <option value="title">Titre</option>
-          </select>
-        </label>
       </div>
 
       <!-- Liste -->

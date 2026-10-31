@@ -78,10 +78,14 @@ export interface EventMapPoint {
   category: EventCategoryId
 }
 
+export type EventListSort = 'date' | 'category'
+
 export interface EventListQuery {
   q?: string
   category?: EventCategoryId
   statuses?: Array<'upcoming' | 'ongoing' | 'past' | 'cancelled' | 'postponed'>
+  /** Tri : date (défaut) ou thème (catégorie). */
+  sort?: EventListSort
   dateFrom?: string
   dateTo?: string
   city?: string

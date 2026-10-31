@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
-import type { EventListQuery, EventMapPoint, EventPublic, EventRecord } from '#shared/types/event'
+import type { EventListQuery, EventListSort, EventMapPoint, EventPublic, EventRecord } from '#shared/types/event'
 import type { DisplayEventStatus } from '#shared/constants/statuses'
+import { categoryLabel } from '#shared/constants/categories'
 import { computeDisplayStatus, resolveEndAt } from '#shared/utils/event-time'
 import { publicLocationView } from '#shared/utils/location'
 import { createCitySlug, citySlugMatches } from '#shared/utils/city-slug'
@@ -77,7 +78,7 @@ export async function withPublicMapFocus(pub: EventPublic): Promise<EventPublic>
   }
 }
 
-function sortEvents(a: EventPublic, b: EventPublic): number {
+function compareByDate(a: EventPublic, b: EventPublic): number {
   const order: Record<DisplayEventStatus, number> = {
     ongoing: 0,
     upcoming: 1,
@@ -92,6 +93,16 @@ function sortEvents(a: EventPublic, b: EventPublic): number {
   if (!a.startAt) return -1
   if (!b.startAt) return 1
   return new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+}
+
+function sortEvents(a: EventPublic, b: EventPublic, sort: EventListSort = 'date'): number {
+  if (sort === 'category') {
+    const byTheme = categoryLabel(a.category).localeCompare(categoryLabel(b.category), 'fr', {
+      sensitivity: 'base',
+    })
+    if (byTheme !== 0) return byTheme
+  }
+  return compareByDate(a, b)
 }
 
 /** Colonnes utiles liste/carte — pas de médias ni payloads lourds. */
@@ -196,7 +207,8 @@ function filterPublic(list: EventPublic[], query: EventListQuery): EventPublic[]
     const wanted = new Set(query.ids.map(id => id.toLowerCase()))
     result = result.filter(e => wanted.has(e.id.toLowerCase()))
   }
-  return result.sort(sortEvents)
+  const sort = query.sort === 'category' ? 'category' : 'date'
+  return result.sort((a, b) => sortEvents(a, b, sort))
 }
 
 export async function listEvents(query: EventListQuery) {
@@ -249,6 +261,7 @@ function filterAdminEvents(
     statuses?: string[]
     publication?: string
     withoutCoords?: boolean
+    sort?: EventListSort
   },
 ): EventPublic[] {
   let items = events
@@ -276,7 +289,8 @@ function filterAdminEvents(
   if (opts.withoutCoords) {
     items = items.filter(e => e.latitude == null || e.longitude == null)
   }
-  return items
+  const sort = opts.sort === 'category' ? 'category' : 'date'
+  return [...items].sort((a, b) => sortEvents(a, b, sort))
 }
 
 export async function listEventsAdmin(opts: {
@@ -287,6 +301,7 @@ export async function listEventsAdmin(opts: {
   statuses?: string[]
   publication?: string
   withoutCoords?: boolean
+  sort?: EventListSort
   /** Liste complète (ex. fusion) — sans compteurs */
   all?: boolean
 }): Promise<{ items: EventPublic[], total: number, page: number, pageSize: number }> {

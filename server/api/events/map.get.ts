@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
   const points = await listMapEvents({
     ...parsed.data,
     statuses,
+    sort: parsed.data.sort === 'category' ? 'category' : 'date',
   })
 
   return { points }

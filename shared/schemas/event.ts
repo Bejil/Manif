@@ -42,6 +42,7 @@ export const eventListQuerySchema = z.object({
   dateFrom: z.string().datetime({ offset: true }).optional().or(z.string().date().optional()),
   dateTo: z.string().datetime({ offset: true }).optional().or(z.string().date().optional()),
   city: z.string().max(120).optional(),
+  sort: z.enum(['date', 'category']).optional().default('date'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(20),
   /** Si fourni, renvoie la page qui contient cet événement (ignore `page`). */
