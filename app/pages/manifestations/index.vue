@@ -283,13 +283,13 @@ const viewOptions: Array<{ id: ViewMode, label: string }> = [
     />
 
     <div class="mt-4 flex flex-wrap items-center gap-2">
-      <div class="flex min-w-0 flex-1 flex-wrap gap-2" role="tablist" aria-label="Mode d’affichage">
+      <div class="flex flex-wrap gap-2" role="tablist" aria-label="Mode d’affichage">
         <button
           v-for="opt in viewOptions"
           :key="opt.id"
           type="button"
           role="tab"
-          class="flex-1 rounded-[4px] px-3 py-2.5 text-sm font-bold sm:flex-none sm:px-4"
+          class="rounded-[4px] px-3 py-2.5 text-sm font-bold sm:px-4"
           :class="viewMode === opt.id ? 'bg-[#111111] text-[#FFFCF4]' : 'border border-[#DDDAD3] bg-white text-[#111111]'"
           :aria-selected="viewMode === opt.id"
           @click="viewMode = opt.id"
@@ -297,7 +297,7 @@ const viewOptions: Array<{ id: ViewMode, label: string }> = [
           {{ opt.label }}
         </button>
       </div>
-      <label class="flex shrink-0 items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm">
         <span class="font-bold text-[#636363]">Trier</span>
         <select
           v-model="sort"

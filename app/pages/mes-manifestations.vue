@@ -22,15 +22,16 @@ const {
   refresh,
 } = useMyEngagements()
 
-const q = ref('')
-const category = ref('')
-const statuses = ref<string[]>(['upcoming', 'ongoing', 'past', 'cancelled', 'postponed'])
+/** Brouillon UI — appliqué seulement via « Rechercher ». */
+const draftQ = ref('')
+const draftCategory = ref('')
+const appliedQ = ref('')
+const appliedCategory = ref('')
 const engagementFilter = ref<EngagementFilter>('all')
 const sort = ref<'date' | 'category'>('date')
 const viewMode = ref<ViewMode>('list')
 const page = ref(1)
 const pageSize = 20
-const debouncedQ = refDebounced(q, 300)
 const selectedId = ref<string | null>(null)
 const previewId = ref<string | null>(null)
 const calendarMonth = ref(DateTime.now().setZone('Europe/Paris').toFormat('yyyy-MM'))
@@ -44,9 +45,9 @@ const filteredLocalIds = computed(() => {
 const listParams = computed(() => {
   if (!filteredLocalIds.value.length) return null
   return {
-    q: debouncedQ.value || undefined,
-    category: category.value || undefined,
-    statuses: statuses.value.join(',') || undefined,
+    q: appliedQ.value || undefined,
+    category: appliedCategory.value || undefined,
+    statuses: 'upcoming,ongoing,past,cancelled,postponed',
     sort: sort.value,
     ids: filteredLocalIds.value.join(','),
     page: 1,
@@ -54,8 +55,16 @@ const listParams = computed(() => {
   }
 })
 
-watch([engagementFilter, debouncedQ, category, statuses, sort], () => {
+function applySearch() {
+  appliedQ.value = draftQ.value.trim()
+  appliedCategory.value = draftCategory.value
   page.value = 1
+  selectedId.value = null
+}
+
+watch([engagementFilter, sort], () => {
+  page.value = 1
+  selectedId.value = null
 })
 
 watch(viewMode, () => {
@@ -87,7 +96,6 @@ const sortedItems = computed(() => {
   const allowed = new Set(filteredLocalIds.value)
   const filtered = items.filter(e => allowed.has(e.id))
 
-  // Le tri date/thème est déjà appliqué côté API ; on conserve l’ordre reçu.
   return filtered.map(e => ({
     event: e,
     mine: byId.get(e.id) || null,
@@ -103,6 +111,12 @@ const pageItems = computed(() => {
   return sortedItems.value.slice(start, start + pageSize)
 })
 
+const headingLabel = computed(() => {
+  if (!engagedIds.value.length) return 'Mes manifestations'
+  const n = sortedItems.value.length
+  return `${n} Manifestation${n > 1 ? 's' : ''}`
+})
+
 const agendaEvents = computed(() =>
   sortedItems.value.map(({ event: e }) => ({
     id: e.id,
@@ -114,6 +128,17 @@ const agendaEvents = computed(() =>
     timezone: e.timezone,
   })),
 )
+
+const viewOptions: Array<{ id: ViewMode, label: string }> = [
+  { id: 'list', label: 'Liste' },
+  { id: 'calendar', label: 'Agenda' },
+]
+
+const engagementOptions: Array<{ id: EngagementFilter, label: string }> = [
+  { id: 'all', label: 'Tous' },
+  { id: 'supported', label: 'Je soutiens' },
+  { id: 'participating', label: 'Je participe' },
+]
 
 watch(totalPages, (max) => {
   if (page.value > max) page.value = max
@@ -136,42 +161,19 @@ function onSelect(id: string) {
 function closePreview() {
   previewId.value = null
 }
-
-function refDebounced<T>(source: Ref<T>, ms: number) {
-  const debounced = ref(source.value) as Ref<T>
-  let t: ReturnType<typeof setTimeout> | undefined
-  watch(source, (v) => {
-    clearTimeout(t)
-    t = setTimeout(() => { debounced.value = v }, ms)
-  })
-  return debounced
-}
 </script>
 
 <template>
   <div class="container-page py-10 md:py-14">
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">Sans compte</p>
-        <h1 class="mf-display mf-h2 mt-2 text-[#111111]">Mes manifestations</h1>
-        <p class="mt-3 max-w-xl text-sm text-[#454545] sm:text-base">
-          Soutiens et participations enregistrés sur cet appareil.
-          Filtrez, triez, ou ouvrez votre agenda mensuel.
-        </p>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <p class="chip bg-[#111111] text-[#FFFCF4]">
-          {{ sortedItems.length }} résultat{{ sortedItems.length > 1 ? 's' : '' }}
-        </p>
-        <UiButton
-          v-if="engagedIds.length"
-          size="sm"
-          :variant="viewMode === 'calendar' ? 'red' : 'outline'"
-          @click="viewMode = viewMode === 'calendar' ? 'list' : 'calendar'"
-        >
-          {{ viewMode === 'calendar' ? 'Voir la liste' : 'Mon agenda' }}
-        </UiButton>
-      </div>
+    <div class="mb-6">
+      <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#D1271C]">Sans compte</p>
+      <h1 class="mf-display mf-h2 mt-2 text-[#111111]">
+        {{ headingLabel }}
+      </h1>
+      <p class="mt-3 max-w-xl text-sm text-[#454545] sm:text-base">
+        Soutiens et participations enregistrés sur cet appareil.
+        Filtrez, triez, ou ouvrez votre agenda mensuel.
+      </p>
     </div>
 
     <EmptyState
@@ -186,23 +188,18 @@ function refDebounced<T>(source: Ref<T>, ms: number) {
 
     <template v-else>
       <EventFilters
-        v-model:q="q"
-        v-model:category="category"
-        v-model:statuses="statuses"
-        v-model:sort="sort"
-        show-statuses
-        show-sort
+        v-model:q="draftQ"
+        v-model:category="draftCategory"
+        id-prefix="mes-manifs"
+        manual-submit
+        @search="applySearch"
       />
 
-      <div class="mt-4 flex flex-wrap gap-3">
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-y-3 gap-x-4">
         <fieldset class="flex flex-wrap gap-2">
           <legend class="sr-only">Type d’engagement</legend>
           <button
-            v-for="opt in [
-              { id: 'all' as const, label: 'Tous' },
-              { id: 'supported' as const, label: 'Je soutiens' },
-              { id: 'participating' as const, label: 'Je participe' },
-            ]"
+            v-for="opt in engagementOptions"
             :key="opt.id"
             type="button"
             class="rounded-[4px] px-3 py-2 text-sm font-bold"
@@ -214,6 +211,34 @@ function refDebounced<T>(source: Ref<T>, ms: number) {
             {{ opt.label }}
           </button>
         </fieldset>
+
+        <div class="flex flex-wrap items-center gap-4">
+          <label class="flex items-center gap-2 text-sm">
+            <span class="font-bold text-[#636363]">Affichage</span>
+            <select
+              v-model="viewMode"
+              class="min-h-[42px] rounded-[4px] border border-[#DDDAD3] bg-white px-2.5 py-2 text-sm font-semibold text-[#111111]"
+            >
+              <option
+                v-for="opt in viewOptions"
+                :key="opt.id"
+                :value="opt.id"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
+          </label>
+          <label class="flex items-center gap-2 text-sm">
+            <span class="font-bold text-[#636363]">Trier</span>
+            <select
+              v-model="sort"
+              class="min-h-[42px] rounded-[4px] border border-[#DDDAD3] bg-white px-2.5 py-2 text-sm font-semibold text-[#111111]"
+            >
+              <option value="date">Date</option>
+              <option value="category">Thème</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <!-- Liste -->
@@ -226,7 +251,7 @@ function refDebounced<T>(source: Ref<T>, ms: number) {
         <EmptyState
           v-else-if="!pageItems.length"
           title="Aucun résultat pour ces filtres"
-          description="Élargissez les statuts ou le type d’engagement."
+          description="Élargissez la recherche ou changez le type d’engagement."
         />
         <EventCard
           v-for="row in pageItems"
