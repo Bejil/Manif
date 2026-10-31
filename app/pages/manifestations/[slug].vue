@@ -82,6 +82,19 @@ const mapPoint = computed(() => {
   }
 })
 
+onMounted(() => {
+  if (!import.meta.client || !event.value) return
+  const key = `manif:viewed:${event.value.id}`
+  try {
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+  }
+  catch {
+    /* private mode */
+  }
+  void $fetch(`/api/events/${event.value.id}/views`, { method: 'POST' }).catch(() => {})
+})
+
 async function submitReport() {
   reportError.value = null
   if (!reportReason.value) {

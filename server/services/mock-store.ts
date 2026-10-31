@@ -38,7 +38,7 @@ export interface MockStore {
   seedVersion?: number
 }
 
-const SEED_VERSION = 6
+const SEED_VERSION = 7
 const globalKey = '__manif_mock_store__'
 
 function emptyStore(): MockStore {

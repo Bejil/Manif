@@ -47,6 +47,7 @@ export function rowToEvent(row: Record<string, unknown>): EventRecord {
     createdAt: normalizeTs(row.created_at),
     updatedAt: normalizeTs(row.updated_at),
     publishedAt: row.published_at ? normalizeTs(row.published_at) : null,
+    viewCount: Math.max(0, Number(row.view_count) || 0),
     isDemo: Boolean(row.is_demo),
   }
 }
@@ -79,6 +80,7 @@ export function eventToRow(event: Partial<EventRecord> & { id?: string }) {
     event_status_override: event.eventStatusOverride ?? null,
     is_demo: event.isDemo ?? false,
     published_at: event.publishedAt ?? null,
+    view_count: event.viewCount ?? 0,
     updated_at: event.updatedAt,
     created_at: event.createdAt,
   }

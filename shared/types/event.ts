@@ -41,11 +41,14 @@ export interface EventRecord {
   createdAt: string
   updatedAt: string
   publishedAt: string | null
+  /** Vues de fiche (incrémentées côté client à l’ouverture) */
+  viewCount: number
   /** Legacy DB flag — non exposé dans l’UI */
   isDemo?: boolean
 }
 
 export interface EventCounts {
+  views: number
   supports: number
   participations: number
 }

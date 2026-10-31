@@ -1,6 +1,6 @@
 <script setup lang="ts">
 withDefaults(defineProps<{
-  name: 'voices' | 'map' | 'support' | 'participate' | 'calendar' | 'share' | 'guide'
+  name: 'voices' | 'map' | 'support' | 'participate' | 'calendar' | 'share' | 'guide' | 'views'
   size?: number
   class?: string
 }>(), {

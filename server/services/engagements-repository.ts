@@ -18,13 +18,13 @@ function ensureSeeded() {
 
 export async function getEventCounts(eventId: string) {
   const map = await getEventCountsBatch([eventId])
-  return map.get(eventId) ?? { supports: 0, participations: 0 }
+  return map.get(eventId) ?? { views: 0, supports: 0, participations: 0 }
 }
 
 /** Compteurs pour plusieurs événements en une requête (admin / listes). */
 export async function getEventCountsBatch(eventIds: string[]) {
-  const empty = () => ({ supports: 0, participations: 0 })
-  const result = new Map<string, { supports: number, participations: number }>()
+  const empty = () => ({ views: 0, supports: 0, participations: 0 })
+  const result = new Map<string, { views: number, supports: number, participations: number }>()
   for (const id of eventIds) result.set(id, empty())
   if (!eventIds.length) return result
 
@@ -33,6 +33,7 @@ export async function getEventCountsBatch(eventIds: string[]) {
     const store = getMockStore()
     for (const id of eventIds) {
       result.set(id, {
+        views: store.events.find(e => e.id === id)?.viewCount ?? 0,
         supports: store.engagements.filter(e => e.eventId === id && e.supportsAt).length,
         participations: store.engagements.filter(e => e.eventId === id && e.participatesAt).length,
       })
@@ -41,12 +42,26 @@ export async function getEventCountsBatch(eventIds: string[]) {
   }
 
   const supabase = getServiceSupabase()
-  const { data, error } = await supabase
-    .from('engagements')
-    .select('event_id, supports_at, participates_at')
-    .in('event_id', eventIds)
+  const [{ data, error }, { data: viewRows, error: viewError }] = await Promise.all([
+    supabase
+      .from('engagements')
+      .select('event_id, supports_at, participates_at')
+      .in('event_id', eventIds),
+    supabase
+      .from('events')
+      .select('id, view_count')
+      .in('id', eventIds),
+  ])
 
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  if (viewError) throw createError({ statusCode: 500, statusMessage: viewError.message })
+
+  for (const row of viewRows ?? []) {
+    const id = row.id as string
+    const cur = result.get(id) ?? empty()
+    cur.views = Math.max(0, Number(row.view_count) || 0)
+    result.set(id, cur)
+  }
 
   for (const row of data ?? []) {
     const id = row.event_id as string

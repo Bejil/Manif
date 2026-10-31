@@ -494,6 +494,7 @@ export async function approveSubmission(id: string, actorId: string) {
     createdAt: now,
     updatedAt: now,
     publishedAt: now,
+    viewCount: 0,
     isDemo: false,
   }
 

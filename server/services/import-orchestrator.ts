@@ -677,6 +677,7 @@ async function applyCandidatesBatch(runId: string, mode: ImportModeId) {
         createdAt: now,
         updatedAt: now,
         publishedAt: publicationStatus === 'published' ? now : null,
+        viewCount: 0,
         isDemo: false,
       }
       const saved = await upsertEvent(record)

@@ -181,6 +181,16 @@ const cityPath = computed(() => `/manifestations/ville/${createCitySlug(props.ev
               class="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
               :class="selected
                 ? 'border border-white/25 text-[#FFFCF4]'
+                : 'border border-[#DDDAD3] text-[#454545]'"
+              :title="`${event.counts.views} vue${event.counts.views === 1 ? '' : 's'}`"
+            >
+              <BrandIcon name="views" :size="12" />
+              {{ event.counts.views }}
+            </span>
+            <span
+              class="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
+              :class="selected
+                ? 'border border-white/25 text-[#FFFCF4]'
                 : 'border border-[#DDDAD3] text-[#4D257D]'"
             >
               <BrandIcon name="support" :size="12" />

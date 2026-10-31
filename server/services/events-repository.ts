@@ -20,7 +20,7 @@ function ensureSeeded() {
 
 export function toPublic(
   event: EventRecord,
-  counts = { supports: 0, participations: 0 },
+  counts: { supports?: number, participations?: number, views?: number } = {},
   options: { maskLocation?: boolean } = {},
 ): EventPublic {
   const mask = options.maskLocation !== false
@@ -34,12 +34,13 @@ export function toPublic(
         locationRevealAt: event.locationRevealAt,
       }
 
-  const { sourceVerificationStatus: _internal, ...rest } = event
+  const { sourceVerificationStatus: _internal, viewCount, ...rest } = event
   const revealed = loc.locationRevealed
   const hasPlace = revealed && loc.latitude != null && loc.longitude != null
 
   return {
     ...rest,
+    viewCount,
     locationName: loc.locationName,
     latitude: loc.latitude,
     longitude: loc.longitude,
@@ -55,7 +56,11 @@ export function toPublic(
       timezone: event.timezone,
       statusOverride: event.eventStatusOverride,
     }),
-    counts,
+    counts: {
+      views: counts.views !== undefined ? counts.views : (viewCount ?? 0),
+      supports: counts.supports ?? 0,
+      participations: counts.participations ?? 0,
+    },
   }
 }
 
@@ -112,7 +117,7 @@ const LIST_COLUMNS = [
   'location_name', 'latitude', 'longitude', 'location_reveal_at',
   'start_at', 'end_at', 'end_is_estimated', 'organizer_name', 'source_url',
   'source_verification_status', 'publication_status', 'event_status_override',
-  'created_at', 'updated_at', 'published_at', 'is_demo',
+  'created_at', 'updated_at', 'published_at', 'view_count', 'is_demo',
 ].join(', ')
 
 function mapListRows(data: unknown[] | null): EventRecord[] {
@@ -233,7 +238,7 @@ export async function listEvents(query: EventListQuery) {
   const countsMap = await getEventCountsBatch(pageItems.map(e => e.id))
   const items = pageItems.map(e => slimListItem({
     ...e,
-    counts: countsMap.get(e.id) ?? { supports: 0, participations: 0 },
+    counts: countsMap.get(e.id) ?? { views: 0, supports: 0, participations: 0 },
   }))
 
   return { items, total: all.length, page, pageSize }
@@ -330,7 +335,7 @@ export async function listEventsAdmin(opts: {
   const countsMap = await getEventCountsBatch(pageSlice.map(e => e.id))
   const items = pageSlice.map(e => ({
     ...e,
-    counts: countsMap.get(e.id) ?? { supports: 0, participations: 0 },
+    counts: countsMap.get(e.id) ?? { views: 0, supports: 0, participations: 0 },
   }))
 
   return { items, total, page, pageSize }
@@ -342,7 +347,7 @@ export async function listAllEventsAdmin() {
   const countsMap = await getEventCountsBatch(records.map(e => e.id))
   return records.map(e => toPublic(
     e,
-    countsMap.get(e.id) ?? { supports: 0, participations: 0 },
+    countsMap.get(e.id) ?? { views: 0, supports: 0, participations: 0 },
     { maskLocation: false },
   ))
 }
@@ -473,7 +478,7 @@ export async function listEventsByCitySlug(
   const countsMap = await getEventCountsBatch(pageItems.map(e => e.id))
   const items = pageItems.map(e => slimListItem({
     ...e,
-    counts: countsMap.get(e.id) ?? { supports: 0, participations: 0 },
+    counts: countsMap.get(e.id) ?? { views: 0, supports: 0, participations: 0 },
   }))
 
   return { city, items, total: filtered.length, page, pageSize }
@@ -666,6 +671,25 @@ export async function mergeEvents(sourceId: string, targetId: string, actorId: s
     metadata: { sourceId },
   })
   return { target, source: { ...source, publicationStatus: 'unpublished' as const } }
+}
+
+/** Incrémente le compteur de vues d’une fiche publiée. */
+export async function incrementEventViews(eventId: string): Promise<number> {
+  if (useMockDb()) {
+    ensureSeeded()
+    const store = getMockStore()
+    const event = store.events.find(e => e.id === eventId)
+    if (!event || event.publicationStatus !== 'published') return 0
+    event.viewCount = (event.viewCount ?? 0) + 1
+    return event.viewCount
+  }
+
+  const supabase = getServiceSupabase()
+  const { data, error } = await supabase.rpc('increment_event_views', {
+    p_event_id: eventId,
+  })
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  return Math.max(0, Number(data) || 0)
 }
 
 export { normalizeSearchText, getEventCounts }

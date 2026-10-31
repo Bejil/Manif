@@ -9,9 +9,10 @@ import { createEventSlug } from '#shared/utils/slug'
  */
 export function buildDemoEvents(now = DateTime.utc()): EventRecord[] {
   const mk = (
-    partial: Omit<EventRecord, 'id' | 'slug' | 'createdAt' | 'updatedAt' | 'publishedAt' | 'countryCode' | 'isDemo'> & {
+    partial: Omit<EventRecord, 'id' | 'slug' | 'createdAt' | 'updatedAt' | 'publishedAt' | 'countryCode' | 'isDemo' | 'viewCount'> & {
       id?: string
       slug?: string
+      viewCount?: number
     },
   ): EventRecord => {
     const id = partial.id ?? cryptoRandom(partial.title + partial.cityName + (partial.startAt ?? 'tba'))
@@ -29,6 +30,7 @@ export function buildDemoEvents(now = DateTime.utc()): EventRecord[] {
       locationRevealAt: partial.locationRevealAt ?? null,
       imageUrls: partial.imageUrls ?? [],
       videoUrls: partial.videoUrls ?? [],
+      viewCount: partial.viewCount ?? (Number.parseInt(id.replace(/\D/g, '').slice(0, 4) || '12', 10) % 400) + 8,
     }
   }
 
