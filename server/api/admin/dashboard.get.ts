@@ -3,6 +3,7 @@ import { listAllEventsAdmin } from '../../services/events-repository'
 import { listAllSubmissionsAdmin } from '../../services/submissions-repository'
 import { countOpenReports } from '../../services/reports-repository'
 import { listAlertsAdmin } from '../../services/alerts-repository'
+import { buildDashboardHighlights } from '../../services/admin-stats'
 import { useMockDb } from '../../utils/supabase'
 import { getMockStore } from '../../services/mock-store'
 
@@ -15,6 +16,7 @@ export default defineEventHandler(async (event) => {
     countOpenReports(),
     listAlertsAdmin({ status: 'all' }),
   ])
+  const highlights = buildDashboardHighlights(allEvents, 3)
 
   const submissionsByStatus = {
     pending_moderation: 0,
@@ -41,19 +43,15 @@ export default defineEventHandler(async (event) => {
     cancelled: 0,
     postponed: 0,
   }
-  let supports = 0
-  let participations = 0
   for (const e of published) {
     if (e.displayStatus in eventsByStatus) {
       eventsByStatus[e.displayStatus as keyof typeof eventsByStatus] += 1
     }
-    supports += e.counts.supports
-    participations += e.counts.participations
   }
 
   const anomalies: string[] = []
   for (const e of published) {
-    if (e.counts.supports < 0 || e.counts.participations < 0) {
+    if (e.counts.supports < 0 || e.counts.participations < 0 || e.counts.views < 0) {
       anomalies.push(`Compteurs négatifs sur ${e.slug}`)
     }
   }
@@ -82,9 +80,17 @@ export default defineEventHandler(async (event) => {
       draft: draft.length,
       dateToConfirm: dateToConfirm.length,
       byStatus: eventsByStatus,
-      supports,
-      participations,
+      views: highlights.views,
+      supports: highlights.supports,
+      participations: highlights.participations,
+      avgViews: highlights.avgViews,
+    },
+    highlights: {
+      topViews: highlights.topViews,
+      topSupports: highlights.topSupports,
+      topParticipations: highlights.topParticipations,
+      topCities: highlights.topCities,
+      topCategories: highlights.topCategories,
     },
   }
 })
-

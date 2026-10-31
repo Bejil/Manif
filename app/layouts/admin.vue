@@ -13,6 +13,7 @@ const { data: me } = await useFetch<{ authenticated: boolean }>('/api/admin/me',
 
 const links = [
   { to: '/admin', label: 'Tableau de bord', exact: true },
+  { to: '/admin/stats', label: 'Stats' },
   { to: '/admin/evenements', label: 'Événements' },
   { to: '/admin/imports', label: 'Imports' },
   { to: '/admin/propositions', label: 'Propositions' },
